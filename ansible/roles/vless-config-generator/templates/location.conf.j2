@@ -1,0 +1,8 @@
+location / {
+    auth_basic "{{ vless_config_generator_htpasswd_realm }}";
+    auth_basic_user_file {{ nginx_confd_container_path }}/htpasswd/{{ vless_config_generator_htpasswd_file }};
+    alias      /usr/share/nginx/html/static/vless-config-generator/;
+    index      index.html;
+    try_files  $uri $uri/ =404;
+    add_header Cache-Control "no-cache" always;
+}

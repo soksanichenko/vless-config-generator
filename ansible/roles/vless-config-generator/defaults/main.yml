@@ -1,0 +1,23 @@
+---
+# Path to the project on the Ansible controller — used to sync the static site before serving.
+vless_config_generator_local_source_dir: "{{ playbook_dir }}/../.."
+
+vless_config_generator_domain: "vless-gen.zelgray.work"
+vless_config_generator_htpasswd_realm: "vless-config-generator"
+vless_config_generator_htpasswd_file: "vless-config-generator-access.htpasswd"
+
+# Single-client data for the rendered clients.json — matches infra's current
+# xray.vless block (one client, not yet a list of Infisical secrets).
+vless_config_generator_client_email: "zel.gray@gmail.com"
+vless_config_generator_client_server: "zelgray.work"
+vless_config_generator_client_port: 443
+
+# Nginx — defaults match infra's nginx role
+nginx_docker_container_name: 'nginx-server'
+nginx_confd_container_path: '/etc/nginx/conf.d'
+nginx_volumes_path: "{{ docker_volumes_directory }}/nginx"
+nginx_confd_path: "{{ nginx_volumes_path }}/conf.d"
+nginx_html_path: "{{ nginx_volumes_path }}/html"
+nginx_domain_custom_locations_path: "{{ nginx_confd_path }}/{{ vless_config_generator_domain }}-custom-locations"
+nginx_htpasswd_path: "{{ nginx_confd_path }}/htpasswd"
+...

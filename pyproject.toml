@@ -1,0 +1,6 @@
+[project]
+name = "vless-config-generator"
+version = "0.1.0"
+description = "Browser-based sing-box routing-rule editor for VLESS clients on zelgray.work"
+requires-python = ">=3.12"
+dependencies = []

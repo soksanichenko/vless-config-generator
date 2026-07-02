@@ -1,0 +1,65 @@
+---
+- name: Build vless-config-generator frontend locally
+  ansible.builtin.command:
+    cmd: npm run build
+    chdir: "{{ vless_config_generator_local_source_dir }}/frontend"
+  delegate_to: localhost
+  become: no
+  changed_when: true
+  tags:
+    - vless-config-generator
+
+- name: Create vless-config-generator static directory (nginx-accessible)
+  ansible.builtin.file:
+    path: "{{ nginx_html_path }}/static/vless-config-generator"
+    state: directory
+    mode: '0755'
+  become: yes
+  tags:
+    - vless-config-generator
+
+- name: Sync vless-config-generator frontend build to nginx html directory
+  ansible.posix.synchronize:
+    src: "{{ vless_config_generator_local_source_dir }}/frontend/dist/"
+    dest: "{{ nginx_html_path }}/static/vless-config-generator/"
+    delete: yes
+    owner: no
+    group: no
+  become: yes
+  tags:
+    - vless-config-generator
+
+- name: Render vless-config-generator clients.json
+  ansible.builtin.template:
+    src: clients.json.j2
+    dest: "{{ nginx_html_path }}/static/vless-config-generator/clients.json"
+    mode: '0644'
+  become: yes
+  no_log: true
+  tags:
+    - vless-config-generator
+
+- name: Configure vless-config-generator nginx
+  import_tasks: nginx.yml
+  tags:
+    - vless-config-generator
+    - vless-config-generator-nginx
+
+- name: Purge Cloudflare cache
+  ansible.builtin.uri:
+    url: "https://api.cloudflare.com/client/v4/zones/{{ cf_zone_id }}/purge_cache"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ cf_api_token_clear_cache }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      purge_everything: true
+    status_code: 200
+  when: cf_purge_cache | default(false) | bool
+  delegate_to: localhost
+  no_log: true
+  tags:
+    - vless-config-generator
+    - cf-purge
+...

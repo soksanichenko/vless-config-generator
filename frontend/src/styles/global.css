@@ -1,0 +1,262 @@
+:root {
+  color-scheme: light dark;
+  --bg: #0f1115;
+  --panel: #171a21;
+  --border: #2a2f3a;
+  --text: #e6e8ec;
+  --text-dim: #9aa1ad;
+  --accent: #4f8cff;
+  --danger: #ff6b6b;
+  --warn: #e0b34d;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+#root {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  color: var(--text-dim);
+  margin-top: 0;
+  margin-bottom: 24px;
+  font-size: 0.9rem;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.card h2 {
+  font-size: 1rem;
+  margin: 0 0 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.field label {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.row > .field {
+  flex: 1;
+  min-width: 200px;
+}
+
+input[type='text'],
+select,
+textarea {
+  background: #0d0f13;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  min-height: 160px;
+  resize: vertical;
+}
+
+button {
+  background: #1f2430;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--accent);
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #06121f;
+  font-weight: 600;
+}
+
+button.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pill-group {
+  display: flex;
+  gap: 8px;
+}
+
+.pill-group button {
+  flex: 1;
+}
+
+.pill-group button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #06121f;
+  font-weight: 600;
+}
+
+.error-banner {
+  background: #2c1518;
+  border: 1px solid var(--danger);
+  color: #ffb3b3;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+.warning-banner {
+  background: #2a2312;
+  border: 1px solid var(--warn);
+  color: #f2d38a;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+.help-text {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin: 2px 0 0;
+}
+
+.rule-card {
+  background: #0d0f13;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.rule-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.drag-handle {
+  cursor: grab;
+  color: var(--text-dim);
+  padding: 2px 6px;
+  user-select: none;
+}
+
+.condition-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.condition-row > * {
+  flex-shrink: 0;
+}
+
+.condition-row .field {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #0d0f13;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+}
+
+.chip button {
+  padding: 0 4px;
+  border: none;
+  background: none;
+  color: var(--danger);
+}
+
+.spacer-top {
+  margin-top: 12px;
+}
+
+output.json-output {
+  display: block;
+  background: #0d0f13;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 400px;
+  overflow: auto;
+}

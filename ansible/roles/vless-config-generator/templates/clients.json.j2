@@ -1,0 +1,15 @@
+{#- infra's xray.vless.clients is currently a single flat client, not a list
+   of Infisical secrets — extend this template once that's restructured. -#}
+{
+  "clients": [
+    {
+      "email": "{{ vless_config_generator_client_email }}",
+      "uuid": "{{ infisical_secrets.secrets['vless-client-id'] }}",
+      "server": "{{ vless_config_generator_client_server }}",
+      "serverPort": {{ vless_config_generator_client_port }},
+      "publicKey": "{{ infisical_secrets.secrets['vless-public-key'] }}",
+      "shortId": "{{ infisical_secrets.secrets['vless-sid'] }}",
+      "serverName": "{{ vless_config_generator_client_server }}"
+    }
+  ]
+}
