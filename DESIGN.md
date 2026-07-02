@@ -141,3 +141,13 @@ an Infisical secret under `/hosts/shared`.
   "direct" and which is "proxy" (auto-detected from `type: "direct"` /
   `type: "vless"`, overridable) — rules and the default-outbound toggle
   route to whichever tags are picked there.
+- The paste box (`frontend/src/lib/defaultConfig.ts`) is pre-loaded with a
+  default template (VLESS/Reality outbound placeholder, direct/block
+  outbounds, tun inbound, DNS servers) so there's always something to edit
+  and export, with a "Reset to default template" button. `buildOutputConfig`
+  always prepends `{"action":"sniff"}` and `{"protocol":"dns","action":
+  "hijack-dns"}` ahead of the user's rules and preserves any other
+  route-level fields (e.g. `default_domain_resolver`) from the pasted
+  config — these aren't exposed as rule-builder toggles since they're
+  prerequisites for domain-based rules to work at all, not routing
+  decisions.

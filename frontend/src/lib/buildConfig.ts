@@ -98,9 +98,20 @@ export function buildOutputConfig(input: BuildConfigInput): SingBoxConfig {
     }
   }
 
-  const rules = input.rules
-    .map((rule) => buildRule(rule, input.ruleSets, input.directTag, input.proxyTag))
-    .filter((rule): rule is Record<string, unknown> => rule !== null)
+  // Required for domain/protocol-based rules to see anything at all, and for DNS
+  // queries to actually go through the configured DNS servers instead of leaking.
+  // Not modeled as a toggle in the UI — always present, ahead of user-built rules.
+  const structuralRules: Record<string, unknown>[] = [
+    { action: 'sniff' },
+    { protocol: 'dns', action: 'hijack-dns' },
+  ]
+
+  const rules = [
+    ...structuralRules,
+    ...input.rules
+      .map((rule) => buildRule(rule, input.ruleSets, input.directTag, input.proxyTag))
+      .filter((rule): rule is Record<string, unknown> => rule !== null),
+  ]
 
   const ruleSet = input.ruleSets.map((ruleSet) => ({
     type: 'remote',
@@ -109,11 +120,23 @@ export function buildOutputConfig(input: BuildConfigInput): SingBoxConfig {
     url: ruleSet.url,
   }))
 
+  // Preserve any other route-level settings the pasted config already had
+  // (e.g. default_domain_resolver, auto_detect_interface) — only rules,
+  // rule_set, and final are ours to fully replace.
+  const existingRoute = (
+    config.route && typeof config.route === 'object' ? config.route : {}
+  ) as Record<string, unknown>
+
   const route: Record<string, unknown> = {
+    ...existingRoute,
     rules,
     final: input.defaultAction === 'direct' ? input.directTag : input.proxyTag,
   }
-  if (ruleSet.length > 0) route.rule_set = ruleSet
+  if (ruleSet.length > 0) {
+    route.rule_set = ruleSet
+  } else {
+    delete route.rule_set
+  }
 
   config.route = route
 

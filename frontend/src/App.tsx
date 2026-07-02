@@ -7,6 +7,7 @@ import { RuleList } from './components/RuleList'
 import { DefaultOutboundToggle } from './components/DefaultOutboundToggle'
 import { OutputPanel } from './components/OutputPanel'
 import { buildOutputConfig } from './lib/buildConfig'
+import { DEFAULT_CONFIG_TEXT } from './lib/defaultConfig'
 import { listOutbounds } from './types/singbox'
 import type { SingBoxConfig } from './types/singbox'
 import type { Action, Rule, RuleSetDef } from './types/rules'
@@ -17,7 +18,7 @@ export function App() {
   const [clientsError, setClientsError] = useState<string | null>(null)
   const [selectedClientEmail, setSelectedClientEmail] = useState<string | null>(null)
 
-  const [configText, setConfigText] = useState('')
+  const [configText, setConfigText] = useState(DEFAULT_CONFIG_TEXT)
   const [parsedConfig, setParsedConfig] = useState<SingBoxConfig | null>(null)
   const [parseError, setParseError] = useState<string | null>(null)
 

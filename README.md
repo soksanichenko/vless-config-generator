@@ -8,6 +8,8 @@ Not a from-scratch config builder — paste an existing sing-box `config.json`
 and only its `route` section (plus the picked VLESS outbound's credentials)
 gets changed. Everything runs client-side in the browser.
 
+- **Default config template** — loaded up front so there's always something
+  to edit and export, even before pasting your own config
 - **Client picker** — pulls VLESS credentials (UUID, Reality public key,
   short ID, SNI) from a deploy-time `clients.json`, no manual entry
 - **Outbound mapping** — auto-detects which outbound in your pasted config is
@@ -19,7 +21,9 @@ gets changed. Everything runs client-side in the browser.
   (Windows/Linux only, needs root/`CAP_NET_ADMIN` on Linux)
 - **Default outbound toggle** — explicit direct/proxy choice for unmatched
   traffic, no implicit default
-- **Output** — copy to clipboard or download the resulting `config.json`
+- **Output** — copy to clipboard or download the resulting `config.json`; a
+  `sniff` rule and a DNS-hijack rule are always included ahead of your rules,
+  since domain-based matching needs them to see anything at all
 
 ## Deployment
 
