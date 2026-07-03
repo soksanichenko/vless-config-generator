@@ -5,6 +5,7 @@ export type ConditionType =
   | 'domain_regex'
   | 'rule_set'
   | 'ip_cidr'
+  | 'ip_is_private'
   | 'port'
   | 'port_range'
   | 'network'
@@ -32,6 +33,8 @@ export interface Rule {
 export interface RuleSetDef {
   id: string
   tag: string
+  /** domain-based (geosite) vs IP-based (geoip) — determines whether a `resolve` action is needed. */
+  kind: 'geosite' | 'geoip'
   format: 'binary' | 'source'
   url: string
 }
@@ -40,7 +43,7 @@ export interface ConditionTypeInfo {
   type: ConditionType
   label: string
   help?: string
-  valueKind: 'text' | 'enum' | 'rule_set'
+  valueKind: 'text' | 'enum' | 'rule_set' | 'boolean'
   placeholder?: string
   enumOptions?: string[]
 }
@@ -81,6 +84,12 @@ export const CONDITION_TYPES: ConditionTypeInfo[] = [
     label: 'IP CIDR',
     valueKind: 'text',
     placeholder: '10.0.0.0/24',
+  },
+  {
+    type: 'ip_is_private',
+    label: 'Private IP (LAN)',
+    help: 'Matches RFC1918/link-local destinations — no values needed, just pick an action.',
+    valueKind: 'boolean',
   },
   {
     type: 'port',

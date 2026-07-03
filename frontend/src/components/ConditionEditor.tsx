@@ -69,6 +69,8 @@ export function ConditionEditor({ condition, ruleSets, onChange, onRemove }: Pro
           </div>
         )}
 
+        {info.valueKind === 'boolean' && <p className="help-text">Matches automatically.</p>}
+
         {info.valueKind === 'rule_set' && (
           <div className="checkbox-group">
             {ruleSets.length === 0 && <p className="help-text">No rule sets defined yet — add one below.</p>}

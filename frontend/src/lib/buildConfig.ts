@@ -49,6 +49,21 @@ function ruleSetTagsFor(values: string[], ruleSets: RuleSetDef[]): string[] {
   return values.map((id) => byId.get(id)).filter((tag): tag is string => Boolean(tag))
 }
 
+/** Whether any rule matches on an IP directly, meaning the destination must be
+ * resolved before routing can evaluate it (geoip rule sets are IP lists, not domains). */
+function needsIpResolve(rules: Rule[], ruleSets: RuleSetDef[]): boolean {
+  const geoipRuleSetIds = new Set(
+    ruleSets.filter((ruleSet) => ruleSet.kind === 'geoip').map((ruleSet) => ruleSet.id),
+  )
+  return rules.some((rule) =>
+    rule.conditions.some((condition) => {
+      if (condition.type === 'ip_cidr') return condition.values.length > 0
+      if (condition.type === 'rule_set') return condition.values.some((id) => geoipRuleSetIds.has(id))
+      return false
+    }),
+  )
+}
+
 function buildRule(rule: Rule, ruleSets: RuleSetDef[], directTag: string, proxyTag: string): Record<string, unknown> | null {
   if (rule.conditions.length === 0) return null
 
@@ -79,6 +94,10 @@ function buildRule(rule: Rule, ruleSets: RuleSetDef[], directTag: string, proxyT
   const ruleSetTags = ruleSetTagsFor(mergeConditionValues(rule.conditions, 'rule_set'), ruleSets)
   if (ruleSetTags.length > 0) output.rule_set = ruleSetTags
 
+  if (rule.conditions.some((condition) => condition.type === 'ip_is_private')) {
+    output.ip_is_private = true
+  }
+
   if (Object.keys(output).length === 0) return null
 
   output.outbound = rule.action === 'direct' ? directTag : proxyTag
@@ -105,6 +124,12 @@ export function buildOutputConfig(input: BuildConfigInput): SingBoxConfig {
     { action: 'sniff' },
     { protocol: 'dns', action: 'hijack-dns' },
   ]
+
+  // Only added when a rule actually matches on an IP (ip_cidr or a geoip rule set) —
+  // those need the destination resolved first, which isn't guaranteed outside tun inbounds.
+  if (needsIpResolve(input.rules, input.ruleSets)) {
+    structuralRules.push({ action: 'resolve', strategy: 'prefer_ipv4' })
+  }
 
   const rules = [
     ...structuralRules,

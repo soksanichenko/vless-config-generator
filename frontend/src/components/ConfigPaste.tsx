@@ -1,4 +1,6 @@
+import { useMemo, useRef } from 'react'
 import { DEFAULT_CONFIG_TEXT } from '../lib/defaultConfig'
+import { highlightJson } from '../lib/jsonHighlight'
 
 interface Props {
   value: string
@@ -7,6 +9,9 @@ interface Props {
 }
 
 export function ConfigPaste({ value, onChange, error }: Props) {
+  const highlightRef = useRef<HTMLPreElement>(null)
+  const highlighted = useMemo(() => highlightJson(value), [value])
+
   return (
     <div className="card">
       <h2>2. Base config.json</h2>
@@ -18,12 +23,24 @@ export function ConfigPaste({ value, onChange, error }: Props) {
         rules, since domain-based matching needs them to see anything at all.
       </p>
       {error && <div className="error-banner">{error}</div>}
-      <textarea
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder="{ ... paste your sing-box config.json here ... }"
-        spellCheck={false}
-      />
+      <div className="code-editor">
+        <pre className="code-editor-highlight" ref={highlightRef} aria-hidden="true">
+          <code dangerouslySetInnerHTML={{ __html: `${highlighted}\n` }} />
+        </pre>
+        <textarea
+          className="code-editor-input"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          onScroll={(event) => {
+            if (highlightRef.current) {
+              highlightRef.current.scrollTop = event.currentTarget.scrollTop
+              highlightRef.current.scrollLeft = event.currentTarget.scrollLeft
+            }
+          }}
+          placeholder="{ ... paste your sing-box config.json here ... }"
+          spellCheck={false}
+        />
+      </div>
       <div className="row spacer-top">
         <button type="button" onClick={() => onChange(DEFAULT_CONFIG_TEXT)}>
           Reset to default template

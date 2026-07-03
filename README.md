@@ -17,13 +17,22 @@ gets changed. Everything runs client-side in the browser.
 - **Routing rule builder** — drag-reorderable rule list (first match wins),
   each rule combining any of: domain (exact/suffix/keyword/regex), rule sets
   (geosite/geoip `.srs`, both quick-add by category and custom URLs),
-  IP CIDR, port/port range, network (tcp/udp), protocol, process name/path
-  (Windows/Linux only, needs root/`CAP_NET_ADMIN` on Linux)
+  IP CIDR, private IP (LAN), port/port range, network (tcp/udp), protocol,
+  process name/path (Windows/Linux only, needs root/`CAP_NET_ADMIN` on Linux)
+- **Rule-set category autocomplete** — geosite/geoip category names are
+  fetched live from the `SagerNet/sing-geosite`/`sing-geoip` GitHub repos and
+  cached in `localStorage` for 24h; falls back to a bundled snapshot list if
+  the fetch fails or is unavailable (e.g. offline local dev)
 - **Default outbound toggle** — explicit direct/proxy choice for unmatched
   traffic, no implicit default
+- **Syntax-highlighted JSON** — both the base-config editor and the output
+  panel highlight JSON tokens as you type/view
 - **Output** — copy to clipboard or download the resulting `config.json`; a
   `sniff` rule and a DNS-hijack rule are always included ahead of your rules,
-  since domain-based matching needs them to see anything at all
+  since domain-based matching needs them to see anything at all. A `resolve`
+  action (`prefer_ipv4`) is added automatically when any rule matches on an
+  IP (an `ip_cidr` condition or a geoip rule set), since those need the
+  destination resolved first
 
 ## Deployment
 

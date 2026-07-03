@@ -38,8 +38,10 @@ inbounds, DNS) passes through untouched.
       verified against current sing-box docs during design — **verify via
       Context7/official docs before implementing this part**, don't trust
       training-data memory for the syntax.
-  - `ip_cidr` / `geoip` — mentioned as a sing-box capability, not fleshed out
-    in detail yet.
+  - `ip_cidr` — manual CIDR list. `geoip` is covered the same way as
+    `geosite`: a `rule_set` condition referencing a geoip `.srs` rule set.
+  - `ip_is_private` — matches RFC1918/link-local destinations, no values
+    needed beyond picking the condition and an action.
 - **Default outbound** (what happens when no rule matches) is a **user-facing
   toggle** — direct or proxy, not a hardcoded default. This was an explicit
   design decision (not "safer default wins").
@@ -150,4 +152,21 @@ an Infisical secret under `/hosts/shared`.
   route-level fields (e.g. `default_domain_resolver`) from the pasted
   config — these aren't exposed as rule-builder toggles since they're
   prerequisites for domain-based rules to work at all, not routing
-  decisions.
+  decisions. A third structural entry, `{"action":"resolve","strategy":
+  "prefer_ipv4"}`, is added conditionally — only when a rule matches on an
+  IP directly (an `ip_cidr` condition, or a `rule_set` condition referencing
+  a geoip rule set) — since geoip `.srs` data is IP-based and needs the
+  destination resolved first, which isn't guaranteed outside tun inbounds.
+- Both the base-config paste box and the output panel syntax-highlight JSON
+  (`frontend/src/lib/jsonHighlight.ts`, a small regex tokenizer — no syntax
+  highlighting dependency). The paste box overlays a highlighted `<pre>`
+  behind a transparent-text `<textarea>`, scroll-synced via a ref, so it
+  stays editable; both boxes share the same fixed size (400px).
+- `RuleSetDef` carries a `kind: 'geosite' | 'geoip'` field (set on both
+  quick-add and the custom-URL form) so `buildOutputConfig` can tell which
+  rule sets are IP-based for the `resolve`-action decision above. Category
+  names for quick-add (and its autocomplete datalist) are fetched from the
+  `SagerNet/sing-geosite`/`sing-geoip` GitHub repos' `rule-set` branch at
+  runtime (`frontend/src/lib/fetchRuleSetCategories.ts`), cached in
+  `localStorage` for 24h, falling back to a bundled full snapshot
+  (`frontend/src/lib/ruleSetCategories.ts`) if the fetch fails.

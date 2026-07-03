@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { highlightJson } from '../lib/jsonHighlight'
 import type { SingBoxConfig } from '../types/singbox'
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
 export function OutputPanel({ config, warnings }: Props) {
   const [copied, setCopied] = useState(false)
   const json = config ? JSON.stringify(config, null, 2) : ''
+  const highlighted = useMemo(() => highlightJson(json), [json])
 
   async function copy() {
     await navigator.clipboard.writeText(json)
@@ -45,7 +47,9 @@ export function OutputPanel({ config, warnings }: Props) {
               {copied ? 'Copied!' : 'Copy to clipboard'}
             </button>
           </div>
-          <output className="json-output">{json}</output>
+          <pre className="json-output">
+            <code dangerouslySetInnerHTML={{ __html: highlighted }} />
+          </pre>
         </>
       )}
     </div>

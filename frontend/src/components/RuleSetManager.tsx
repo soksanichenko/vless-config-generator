@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { getRuleSetCategories } from '../lib/fetchRuleSetCategories'
 import { newId } from '../lib/id'
+import { GEOIP_CATEGORIES, GEOSITE_CATEGORIES } from '../lib/ruleSetCategories'
 import type { RuleSetDef } from '../types/rules'
 
 interface Props {
@@ -18,13 +20,29 @@ export function RuleSetManager({ ruleSets, onChange }: Props) {
   const [customTag, setCustomTag] = useState('')
   const [customUrl, setCustomUrl] = useState('')
   const [customFormat, setCustomFormat] = useState<'binary' | 'source'>('binary')
+  const [customKind, setCustomKind] = useState<'geosite' | 'geoip'>('geosite')
+  const [geositeOptions, setGeositeOptions] = useState(GEOSITE_CATEGORIES)
+  const [geoipOptions, setGeoipOptions] = useState(GEOIP_CATEGORIES)
+
+  useEffect(() => {
+    let cancelled = false
+    getRuleSetCategories('geosite').then((categories) => {
+      if (!cancelled) setGeositeOptions(categories)
+    })
+    getRuleSetCategories('geoip').then((categories) => {
+      if (!cancelled) setGeoipOptions(categories)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   function addQuick() {
     const trimmed = category.trim().toLowerCase()
     if (!trimmed) return
     const tag = `${kind}-${trimmed}`
     if (ruleSets.some((ruleSet) => ruleSet.tag === tag)) return
-    onChange([...ruleSets, { id: newId(), tag, format: 'binary', url: templateUrl(kind, trimmed) }])
+    onChange([...ruleSets, { id: newId(), tag, kind, format: 'binary', url: templateUrl(kind, trimmed) }])
     setCategory('')
   }
 
@@ -33,7 +51,7 @@ export function RuleSetManager({ ruleSets, onChange }: Props) {
     const url = customUrl.trim()
     if (!tag || !url) return
     if (ruleSets.some((ruleSet) => ruleSet.tag === tag)) return
-    onChange([...ruleSets, { id: newId(), tag, format: customFormat, url }])
+    onChange([...ruleSets, { id: newId(), tag, kind: customKind, format: customFormat, url }])
     setCustomTag('')
     setCustomUrl('')
   }
@@ -74,12 +92,24 @@ export function RuleSetManager({ ruleSets, onChange }: Props) {
         <div className="field">
           <label htmlFor="ruleset-category">Category name</label>
           <input
+            key={kind}
             id="ruleset-category"
             type="text"
+            list={`ruleset-category-options-${kind}`}
             value={category}
             onChange={(event) => setCategory(event.target.value)}
             placeholder="netflix, cn, private, ..."
           />
+          <datalist id="ruleset-category-options-geosite">
+            {geositeOptions.map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
+          <datalist id="ruleset-category-options-geoip">
+            {geoipOptions.map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
         </div>
         <div className="field" style={{ flex: '0 0 auto', justifyContent: 'flex-end' }}>
           <label>&nbsp;</label>
@@ -101,6 +131,17 @@ export function RuleSetManager({ ruleSets, onChange }: Props) {
               onChange={(event) => setCustomTag(event.target.value)}
               placeholder="my-custom-set"
             />
+          </div>
+          <div className="field">
+            <label htmlFor="ruleset-custom-kind">Kind</label>
+            <select
+              id="ruleset-custom-kind"
+              value={customKind}
+              onChange={(event) => setCustomKind(event.target.value as 'geosite' | 'geoip')}
+            >
+              <option value="geosite">geosite (domain-based)</option>
+              <option value="geoip">geoip (IP-based)</option>
+            </select>
           </div>
           <div className="field">
             <label htmlFor="ruleset-format">Format</label>
