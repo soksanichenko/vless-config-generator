@@ -3,6 +3,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { ConditionEditor } from './ConditionEditor'
 import { newId } from '../lib/id'
 import type { Action, Condition, Rule, RuleSetDef } from '../types/rules'
+import { useLang } from '../i18n/LangContext'
 
 interface Props {
   rule: Rule
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function RuleCard({ rule, ruleSets, onChange, onRemove }: Props) {
+  const { t } = useLang()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: rule.id,
   })
@@ -52,18 +54,18 @@ export function RuleCard({ rule, ruleSets, onChange, onRemove }: Props) {
         </span>
         <div className="pill-group" style={{ flex: 1 }}>
           <button type="button" className={rule.action === 'direct' ? 'active' : ''} onClick={() => setAction('direct')}>
-            Direct
+            {t('common.direct')}
           </button>
           <button type="button" className={rule.action === 'proxy' ? 'active' : ''} onClick={() => setAction('proxy')}>
-            Proxy
+            {t('common.proxy')}
           </button>
         </div>
         <button type="button" className="danger" onClick={onRemove}>
-          Delete rule
+          {t('ruleCard.deleteRule')}
         </button>
       </div>
 
-      {rule.conditions.length === 0 && <p className="help-text">No conditions yet — this rule won't be included in the output.</p>}
+      {rule.conditions.length === 0 && <p className="help-text">{t('ruleCard.noConditions')}</p>}
 
       {rule.conditions.map((condition) => (
         <ConditionEditor
@@ -76,7 +78,7 @@ export function RuleCard({ rule, ruleSets, onChange, onRemove }: Props) {
       ))}
 
       <button type="button" onClick={addCondition}>
-        + Add condition
+        {t('ruleCard.addCondition')}
       </button>
     </div>
   )

@@ -9,9 +9,11 @@ generator for OpenVPN/VLESS/AmneziaWG). Scope narrowed to **VLESS/sing-box only*
 A tool for generating/editing sing-box client configs, focused specifically on
 **routing rules**: which apps/ports/protocols/domains go direct vs. through the
 VLESS proxy. Not a from-scratch config builder — the user pastes their existing
-sing-box `config.json`, the tool lets them edit the `route` section, and outputs
-the same config with `route` replaced/updated. Everything else (outbounds,
-inbounds, DNS) passes through untouched.
+sing-box `config.json`, the tool lets them edit the `route` section (and, via
+the Region dropdown — see "Region selection" below — the `dns` section, plus
+for Ukraine some structural `route` rules), and outputs the same config with
+those replaced/updated. Everything
+else (outbounds, inbounds) passes through untouched.
 
 ## Routing rule builder
 
@@ -66,6 +68,151 @@ reads the caller's own session cookie and returns only *that* client's data
 source of truth for the *shared* Reality parameters (`vless-public-key`,
 `vless-sid`), templated into the backend's `config.yaml` the same way
 `clients.json.j2` used to read them.
+
+**Connect address vs. Reality SNI split:** `zelgray.work` is proxied through
+Cloudflare, so it can't be used as the actual VLESS dial target — TCP/TLS
+traffic to it hits Cloudflare's edge instead of the origin xray server,
+breaking Reality entirely. `vless_server` (the `server` field in every
+client's API response) points at the `vless.zelgray.work` CNAME instead
+(DNS-only, bypasses Cloudflare); `vless_server_name` (the Reality SNI
+camouflage target) stays `zelgray.work`, since it's never resolved over the
+network — it's just the TLS SNI string sent to the origin. These are two
+independent config vars (`vless_server`/`vless_server_name` in
+`sources/src/vless_admin/config.py`; `vless_config_generator_vless_server`/
+`_vless_server_name` in the ansible role) — the role's `config.yaml.j2`
+used to derive both from a single ansible var before this split.
+
+## Region selection
+
+Alongside the routing-rule builder (which edits `route`), the frontend also
+fully generates the `dns` section — and, for Ukraine, structural `route`
+rules too — based on a "Region" dropdown (`Default` / `Ukraine` / `Russia`
+— `frontend/src/components/RegionSelector.tsx`, `frontend/src/lib/
+regionConfig.ts`, `frontend/src/types/region.ts`). Originally scoped to
+`dns` only (hence the "DNS region" name early on), it grew to also own a
+handful of `route.rules` once it became clear some of them (CDN direct-
+routing, see below) can't be decided correctly without also knowing the
+DNS-side geoip logic — so the dropdown, files, and types were renamed to
+`Region`/`region*` to stop implying a DNS-only scope. Same
+replace-not-merge treatment `buildOutputConfig` already gives `route`:
+`dns.servers`/`dns.rules`/`dns.final` and `route.default_domain_resolver`
+are always fully replaced based on the picked region; any other
+pre-existing `dns`-level keys in the pasted config pass through untouched.
+
+- **Default** — plain Cloudflare DoH (`1.1.1.1/dns-query`), no
+  region-specific routing. Replaces the original placeholder DNS servers
+  (`223.5.5.5` UDP — a Chinese resolver with no relevance to this
+  deployment's actual traffic).
+- **Ukraine** — most Ukrainian ISPs block Cloudflare-fronted `.ru` sites at
+  the DNS/IP level (sanctions since 2017: `vk.com`, `mail.ru`, `ok.ru`,
+  `yandex.*`, etc.), so those need to resolve through the VLESS tunnel
+  instead of the local/ISP resolver — but everything else (including `.ua`
+  services) should resolve locally, so CDNs hand back the nearest edge
+  instead of a remote one via a foreign DoH server. `SagerNet/sing-geosite`'s
+  `geosite-ua.srs`/`geosite-ru.srs` **don't actually exist** as published
+  files (confirmed via `curl` — 404; an earlier iteration assumed they did,
+  a real bug), so domain-suffix pre-sorting isn't possible. Instead this
+  uses sing-box's two-pass DNS resolution: resolve via `dns-direct`
+  (Cloudflare, no tunnel) first, then re-route the response through
+  `dns-local` or `dns-remote` (Cloudflare via the VLESS tunnel) depending on
+  which country's `geoip-ua`/`geoip-ru` rule set (`SagerNet/sing-geoip`,
+  confirmed to exist) the resolved IP actually falls into.
+- **Russia** — the opposite default: most traffic (including `.ru`)
+  resolves fine locally; only domains/IPs actually on Roskomnadzor's
+  blocklist need the tunnel. Uses `runetfreedom/russia-v2ray-rules-dat`'s
+  `geosite-ru-blocked`/`geoip-ru-blocked` rule sets instead of a generic
+  geoip split — RKN blocks plenty of non-Russian services too (Instagram,
+  parts of Google, Discord), so "blocked" and "Russian" aren't the same
+  criterion. The tunnel's DNS server is Quad9 (`9.9.9.9`), not Cloudflare —
+  Cloudflare's own infrastructure (including DoH) has been separately
+  throttled/blocked by Russian ISPs since June 2025, so routing *through*
+  Cloudflare from inside Russia is a bad assumption; querying Quad9 through
+  the VLESS tunnel sidesteps the question entirely since the ISP only ever
+  sees an opaque TLS session to the VDS.
+- `route.default_domain_resolver` is derived by `buildRegionConfig` (not left
+  as a passthrough from the pasted config), since it must reference a
+  server tag that actually exists in whichever `dns.servers` the picked
+  region produced — an earlier version left it as `"local"` from the
+  placeholder config, which stopped matching once the DNS servers were
+  retagged `dns-local`/`dns-remote`/`dns-direct`.
+- **Ukraine — CDN direct-routing.** Ukraine's `final` is `proxy` (see below),
+  so without an explicit carve-out, well-known CDN edge ranges (Cloudflare,
+  Google, Fastly, AWS CloudFront) would take an unnecessary detour through
+  the VLESS tunnel even though nothing about them is blocked in Ukraine —
+  their anycast edges already sit a few ms away. `buildRegionConfig` adds four
+  `Loyalsoldier/geoip` ASN-based rule sets (`cdn-cloudflare`/`cdn-google`/
+  `cdn-fastly`/`cdn-cloudfront`, `download_detour` direct) plus a structural
+  `route.rules` block ahead of the user's own rules: `ip_is_private` →
+  direct, `geoip-ru` → proxy, the four CDN rule sets → direct, `geoip-ua` →
+  direct — in that exact order. **Order matters**: `geoip-ru` must be
+  checked before the CDN rule sets, because a resource reachable only
+  through the tunnel could itself sit behind Cloudflare; if the CDN rule
+  matched first it would route direct and break the block-bypass. This also
+  means the `resolve` structural action is now unconditionally added for
+  the `ua` region (`buildRegionConfig`'s `needsIpResolve: true`), since these
+  rules always match on geoip regardless of what the user's own rules do.
+  Not needed for **Russia**: its `final` is already `direct`, so unblocked
+  CDN traffic already goes direct for free — adding the same rule sets there
+  would only add a startup dependency on more GitHub-hosted `.srs` downloads
+  (already a known soft spot for Russian networks) for no behavioral change.
+- **Known gap, deliberately left manual:** beyond the Ukraine CDN/geoip
+  block above, region selection does not override the default-outbound
+  toggle (`DefaultOutboundToggle` remains the sole owner of `route.final`),
+  and Russia still has no auto-injected `route.rules` for
+  `geosite-ru-blocked`/`geoip-ru-blocked` → proxy — add that manually via
+  the rule builder if you pick the Russia region, or a domain/IP can
+  resolve "correctly" (through the right DNS path) while the actual
+  TCP/UDP connection still goes the wrong way and hits a block.
+
+## Localization
+
+EN/UA/RU support (`frontend/src/i18n/translations.ts`, `LangContext.tsx`,
+`components/LanguageSwitcher.tsx`), inspired by `infra`'s `web-content` role
+— its static error pages (401/403/404/50x) show all three languages
+stacked, each behind a small uppercase `.lang` badge, since those pages are
+read once and never interacted with again. This app is the opposite: a
+dense, repeatedly-used form. Showing three stacked translations under every
+heading/label/button would roughly triple the visual weight of every field
+— so instead of replicating that layout, only the underlying idea (always
+show which language you're looking at) carries over, as a language
+**switcher**: one active language at a time, picked from a `<select>`
+dropdown with a flag emoji per option (`LanguageSwitcher.tsx`,
+`i18n/translations.ts`'s `LANG_OPTIONS`), persisted to `localStorage`
+(`LangContext.tsx`, key `lang`, default `en`).
+
+- `translations.ts` is a flat `key -> {en, ua, ru}` dictionary plus a
+  `t(key, lang, vars?)` helper that does simple `{varName}` substitution —
+  no pluralization or nested-message logic, since the app doesn't need it.
+  Every heading, help text, label, button, checkbox, warning, and the
+  routing-rule condition-type labels/help text (`types/rules.ts`
+  `CONDITION_TYPES`, now storing `labelKey`/`helpKey` instead of literal
+  English strings) go through it. The Output panel's "Show comments" toggle
+  (`lib/annotateConfig.ts`) appends an explanatory `// comment` to known
+  lines of the pretty-printed JSON, for reading only — Copy/Download always
+  use the plain, comment-free JSON, since comments make the text invalid
+  JSON and some sing-box clients (older bundled cores) may fail to parse
+  it. Those comments are localized too, but via a separate
+  `pattern -> {en, ua, ru}` table in `annotateConfig.ts` itself rather than
+  `translations.ts`, since they're keyed by JSON-line substring, not by a
+  static UI location.
+- `LangContext` is a plain React context, not prop-drilled — any component
+  calls `useLang()` directly for `{ lang, setLang, t }`. This was a
+  deliberate difference from how `region`/`rules`/etc. are handled (lifted
+  into `App.tsx` state and passed down as props): those are business state
+  the app orchestrates and reacts to; language is a cross-cutting display
+  concern with no business-logic dependents, so context avoids threading it
+  through components (`RuleList` → `RuleCard` → `ConditionEditor`) that
+  don't otherwise need to know about it.
+- A few strings intentionally stay untranslated: literal identifiers the
+  user must recognize as-is in the generated config or its own UI state
+  (`geosite`/`geoip` as `<option>` values, `binary`/`source` format values,
+  `tcp`/`udp`/`http`/`tls`/... protocol enum values) — translating those
+  would make them harder to match against actual sing-box config syntax,
+  not easier.
+- Language choice is purely a frontend/display concern — it has no effect
+  on the generated `config.json` (region, rules, and client credentials are
+  unaffected), and nothing here touches the backend (`sources/`) or its own
+  server-rendered pages (`/login`, `/admin/`), which remain English-only.
 
 ## Admin panel + client-credential site auth
 
@@ -203,8 +350,10 @@ cookie-session based, both enforced via nginx `auth_request`:
 2. Paste an existing sing-box `config.json` as the base.
 3. Build/edit routing rules in the rule list (conditions + direct/proxy
    action, drag to reorder).
-4. Set the default outbound (direct/proxy toggle).
-5. Get back the same config with `route` replaced — download or copy.
+4. Set the default outbound (direct/proxy toggle) and the Region
+   (Default/Ukraine/Russia).
+5. Get back the same config with `route` and `dns` replaced — download or
+   copy.
 6. Everything from step 2 onward runs entirely in the browser; the client
    data (step 1) and rule-set category autocomplete now depend on this
    repo's own backend rather than a deploy-time static file (see "Admin
@@ -239,20 +388,25 @@ cookie-session based, both enforced via nginx `auth_request`:
   `type: "remote"`, referenced from rules via `rule_set: [tags]`) and
   drag-to-reorder (`@dnd-kit`). Default outbound is an explicit toggle
   writing `route.final`.
-- Outbound-mapping UI lets the user pick which existing outbound tag is
-  "direct" and which is "proxy" (auto-detected from `type: "direct"` /
-  `type: "vless"`, overridable) — rules and the default-outbound toggle
-  route to whichever tags are picked there.
+- Which outbound tag is "direct" and which is "proxy" is auto-detected from
+  `type: "direct"` / `type: "vless"` in the parsed config (`App.tsx`) — rules
+  and the default-outbound toggle route to whichever tags that finds. There
+  used to be a manual override UI for this (`OutboundMapping.tsx`), removed
+  since in practice users never paste a config with different outbound
+  tags than the default template's (`direct`/`proxy`) — the auto-detect
+  alone already covers the real usage.
 - The paste box (`frontend/src/lib/defaultConfig.ts`) is pre-loaded with a
   default template (VLESS/Reality outbound placeholder, direct/block
   outbounds, tun inbound, DNS servers) so there's always something to edit
   and export, with a "Reset to default template" button. `buildOutputConfig`
   always prepends `{"action":"sniff"}` and `{"protocol":"dns","action":
   "hijack-dns"}` ahead of the user's rules and preserves any other
-  route-level fields (e.g. `default_domain_resolver`) from the pasted
-  config — these aren't exposed as rule-builder toggles since they're
-  prerequisites for domain-based rules to work at all, not routing
-  decisions. A third structural entry, `{"action":"resolve","strategy":
+  route-level fields (e.g. `auto_detect_interface`) from the pasted config —
+  these aren't exposed as rule-builder toggles since they're prerequisites
+  for domain-based rules to work at all, not routing decisions.
+  `default_domain_resolver` is the one route-level field that is *not*
+  preserved from the pasted config — see "Region selection" below for
+  why. A third structural entry, `{"action":"resolve","strategy":
   "prefer_ipv4"}`, is added conditionally — only when a rule matches on an
   IP directly (an `ip_cidr` condition, or a `rule_set` condition referencing
   a geoip rule set) — since geoip `.srs` data is IP-based and needs the
@@ -292,3 +446,11 @@ cookie-session based, both enforced via nginx `auth_request`:
   against their respective backend endpoint, redirecting to `/login` or
   `/admin/login` on 401 — see that role's `README.md` for the full
   variable/tag reference.
+- Region selection (`frontend/src/lib/regionConfig.ts`,
+  `frontend/src/types/region.ts`, `frontend/src/components/
+  RegionSelector.tsx`) fully replaces `dns.servers`/`dns.rules`/
+  `dns.final` and `route.default_domain_resolver` based on a
+  `Default`/`Ukraine`/`Russia` dropdown — see "Region selection" above
+  for the full rationale and the current gap (matching `route.rules` for
+  geoip/blocklist routing are still added manually via the rule builder,
+  not auto-injected).

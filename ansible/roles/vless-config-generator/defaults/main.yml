@@ -17,7 +17,11 @@ vless_config_generator_api_cache_ttl: 86400
 
 # Shared VLESS/Reality server parameters the API bakes into every client's
 # dropdown/config data — identical to what xray's own config uses.
-vless_config_generator_vless_server: "zelgray.work"
+# zelgray.work is proxied through Cloudflare, so clients must connect via the
+# vless.zelgray.work CNAME instead; vless_server_name is the Reality SNI
+# camouflage target and stays zelgray.work.
+vless_config_generator_vless_server: "vless.zelgray.work"
+vless_config_generator_vless_server_name: "zelgray.work"
 vless_config_generator_vless_server_port: 443
 
 # GitHub Actions dispatch — applies a new client to the real xray server via

@@ -32,16 +32,21 @@ export const DEFAULT_CONFIG: SingBoxConfig = {
       auto_route: true,
       strict_route: true,
     },
+    {
+      type: 'mixed',
+      tag: 'mixed-in',
+      listen: '127.0.0.1',
+      listen_port: 2080,
+    },
   ],
   dns: {
-    servers: [
-      { type: 'tls', tag: 'remote', server: '1.1.1.1' },
-      { type: 'udp', tag: 'local', server: '223.5.5.5' },
-    ],
+    servers: [{ type: 'https', tag: 'dns-remote', server: '1.1.1.1', path: '/dns-query' }],
+    rules: [{ query_type: [32, 33], action: 'predefined', rcode: 'NOERROR' }],
+    final: 'dns-remote',
   },
   route: {
     rules: [],
-    default_domain_resolver: 'local',
+    default_domain_resolver: 'dns-remote',
     auto_detect_interface: true,
     final: 'direct',
   },

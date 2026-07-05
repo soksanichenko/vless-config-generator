@@ -1,6 +1,8 @@
 import type { SingBoxConfig } from '../types/singbox'
 import type { Action, Condition, ConditionType, Rule, RuleSetDef } from '../types/rules'
 import type { VlessClient } from '../types/clients'
+import type { Region } from '../types/region'
+import { buildRegionConfig } from './regionConfig'
 
 export interface BuildConfigInput {
   config: SingBoxConfig
@@ -11,6 +13,7 @@ export interface BuildConfigInput {
   proxyTag: string
   proxyOutboundIndex: number | null
   selectedClient: VlessClient | null
+  region: Region
 }
 
 /** Fields we control on the injected VLESS outbound; everything else on it is left as-is. */
@@ -117,6 +120,9 @@ export function buildOutputConfig(input: BuildConfigInput): SingBoxConfig {
     }
   }
 
+  const { dns, extraRuleSets, defaultDomainResolver, routeRules: regionRouteRules, needsIpResolve: regionNeedsIpResolve } =
+    buildRegionConfig(input.region, input.directTag, input.proxyTag)
+
   // Required for domain/protocol-based rules to see anything at all, and for DNS
   // queries to actually go through the configured DNS servers instead of leaking.
   // Not modeled as a toggle in the UI — always present, ahead of user-built rules.
@@ -127,27 +133,37 @@ export function buildOutputConfig(input: BuildConfigInput): SingBoxConfig {
 
   // Only added when a rule actually matches on an IP (ip_cidr or a geoip rule set) —
   // those need the destination resolved first, which isn't guaranteed outside tun inbounds.
-  if (needsIpResolve(input.rules, input.ruleSets)) {
+  if (needsIpResolve(input.rules, input.ruleSets) || regionNeedsIpResolve) {
     structuralRules.push({ action: 'resolve', strategy: 'prefer_ipv4' })
   }
 
   const rules = [
     ...structuralRules,
+    ...regionRouteRules,
     ...input.rules
       .map((rule) => buildRule(rule, input.ruleSets, input.directTag, input.proxyTag))
       .filter((rule): rule is Record<string, unknown> => rule !== null),
   ]
 
-  const ruleSet = input.ruleSets.map((ruleSet) => ({
-    type: 'remote',
-    tag: ruleSet.tag,
-    format: ruleSet.format,
-    url: ruleSet.url,
-  }))
+  // Region rule sets take priority on a tag collision with the user's own rule sets.
+  const regionRuleSetTags = new Set(extraRuleSets.map((ruleSet) => ruleSet.tag))
+  const ruleSet = [
+    ...input.ruleSets
+      .filter((ruleSet) => !regionRuleSetTags.has(ruleSet.tag))
+      .map((ruleSet) => ({
+        type: 'remote',
+        tag: ruleSet.tag,
+        format: ruleSet.format,
+        url: ruleSet.url,
+      })),
+    ...extraRuleSets,
+  ]
 
   // Preserve any other route-level settings the pasted config already had
-  // (e.g. default_domain_resolver, auto_detect_interface) — only rules,
-  // rule_set, and final are ours to fully replace.
+  // (e.g. auto_detect_interface) — only rules, rule_set, final, and
+  // default_domain_resolver are ours to fully replace. default_domain_resolver in
+  // particular must reference a server tag that exists in the dns section we just
+  // built above, so it can't be left as a passthrough from the pasted config either.
   const existingRoute = (
     config.route && typeof config.route === 'object' ? config.route : {}
   ) as Record<string, unknown>
@@ -155,6 +171,7 @@ export function buildOutputConfig(input: BuildConfigInput): SingBoxConfig {
   const route: Record<string, unknown> = {
     ...existingRoute,
     rules,
+    default_domain_resolver: defaultDomainResolver,
     final: input.defaultAction === 'direct' ? input.directTag : input.proxyTag,
   }
   if (ruleSet.length > 0) {
@@ -164,6 +181,13 @@ export function buildOutputConfig(input: BuildConfigInput): SingBoxConfig {
   }
 
   config.route = route
+
+  // Preserve any other dns-level settings the pasted config already had —
+  // only servers, rules, and final are fully replaced based on the selected region.
+  const existingDns = (
+    config.dns && typeof config.dns === 'object' ? config.dns : {}
+  ) as Record<string, unknown>
+  config.dns = { ...existingDns, ...dns }
 
   return config
 }

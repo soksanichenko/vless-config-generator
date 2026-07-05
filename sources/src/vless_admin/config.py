@@ -15,7 +15,7 @@ class AppConfig(BaseModel):
 
     # Shared VLESS/Reality server parameters — identical for every client,
     # templated from the same Infisical secrets xray's own config uses.
-    vless_server: str = "zelgray.work"
+    vless_server: str = "vless.zelgray.work"
     vless_server_port: int = 443
     vless_public_key: str = ""
     vless_short_id: str = ""

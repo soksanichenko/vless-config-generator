@@ -5,10 +5,11 @@ Browser-based sing-box routing-rule editor for VLESS clients on zelgray.work
 ## Features
 
 Not a from-scratch config builder — paste an existing sing-box `config.json`
-and only its `route` section (plus the picked VLESS outbound's credentials)
-gets changed. All config editing/output generation still runs entirely in
-the browser; a small FastAPI backend (`sources/`) now provides client data,
-rule-set categories, site login, and the admin panel described below.
+and only its `route`/`dns` sections (plus the picked VLESS outbound's
+credentials) get changed. All config editing/output generation still runs
+entirely in the browser; a small FastAPI backend (`sources/`) now provides
+client data, rule-set categories, site login, and the admin panel described
+below.
 
 - **Default config template** — loaded up front so there's always something
   to edit and export, even before pasting your own config
@@ -25,8 +26,6 @@ rule-set categories, site login, and the admin panel described below.
   gated by nginx `auth_request` against the backend: log in at `/login`
   with an existing client's email + VLESS UUID, gets you a signed session
   cookie (`/logout` to end it)
-- **Outbound mapping** — auto-detects which outbound in your pasted config is
-  "direct" and which is the VLESS "proxy", overridable
 - **Routing rule builder** — drag-reorderable rule list (first match wins),
   each rule combining any of: domain (exact/suffix/keyword/regex), rule sets
   (geosite/geoip `.srs`, both quick-add by category and custom URLs),
@@ -40,6 +39,17 @@ rule-set categories, site login, and the admin panel described below.
   is unreachable (e.g. offline local dev)
 - **Default outbound toggle** — explicit direct/proxy choice for unmatched
   traffic, no implicit default
+- **Region** — dropdown (`Default` / `Ukraine` / `Russia`) that fully
+  regenerates the output's `dns` section: `Default` is plain Cloudflare DoH;
+  `Ukraine` resolves locally by default and re-routes only domains whose
+  resolved IP falls in Russia's geoip range through the VLESS tunnel (also
+  routes well-known CDN ranges — Cloudflare/Google/Fastly/CloudFront —
+  direct, ahead of your own rules, so unblocked CDN traffic doesn't take an
+  unnecessary detour through the tunnel); `Russia` resolves locally by
+  default and re-routes only domains/IPs on Roskomnadzor's blocklist through
+  the tunnel (via Quad9, not Cloudflare). Russia doesn't auto-add the
+  matching `route` rules for its blocklist — add those by hand in the rule
+  builder above to keep DNS and routing in sync
 - **Syntax-highlighted JSON** — both the base-config editor and the output
   panel highlight JSON tokens as you type/view
 - **Output** — copy to clipboard or download the resulting `config.json`; a
@@ -47,7 +57,17 @@ rule-set categories, site login, and the admin panel described below.
   since domain-based matching needs them to see anything at all. A `resolve`
   action (`prefer_ipv4`) is added automatically when any rule matches on an
   IP (an `ip_cidr` condition or a geoip rule set), since those need the
-  destination resolved first
+  destination resolved first. A "Show comments" toggle switches the display
+  to an annotated, explanatory version of the same JSON (localized) — Copy
+  and Download always stay on the plain, comment-free version, since
+  comments aren't valid JSON and some sing-box clients won't parse them
+- **Localization** — EN/UA/RU switcher (top-right, persisted in
+  `localStorage`); every heading, help text, label, button, and warning is
+  translated. Unlike zelgray.work's static error pages (`infra`'s
+  `web-content` role), which show all three languages stacked at once since
+  they're read once and never interacted with, this is a single-language
+  switcher — showing three languages per field would be unusable in a form
+  this dense
 
 ## Deployment
 

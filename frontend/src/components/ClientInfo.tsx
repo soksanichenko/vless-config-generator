@@ -1,4 +1,5 @@
 import type { VlessClient } from '../types/clients'
+import { useLang } from '../i18n/LangContext'
 
 interface Props {
   client: VlessClient | null
@@ -6,21 +7,20 @@ interface Props {
 }
 
 export function ClientInfo({ client, loadError }: Props) {
+  const { t } = useLang()
   return (
     <div className="card">
-      <h2>1. Client</h2>
+      <h2>{t('client.heading')}</h2>
       {loadError && (
-        <div className="warning-banner">
-          Could not load your client credentials ({loadError}). You can still build a config, but
-          the proxy outbound's credentials won't be filled in automatically.
-        </div>
+        <div className="warning-banner">{t('client.loadError', { error: loadError })}</div>
       )}
       {!loadError && client && (
         <p className="help-text">
-          Logged in as <strong>{client.email}</strong> ({client.server}:{client.serverPort}) —
-          these credentials will be filled into the proxy outbound.{' '}
+          {t('client.loggedInAsPrefix')}
+          <strong>{client.email}</strong> ({client.server}:{client.serverPort})
+          {t('client.loggedInAsSuffix')}{' '}
           <form action="/logout" method="post" style={{ display: 'inline' }}>
-            <button type="submit">Log out</button>
+            <button type="submit">{t('client.logout')}</button>
           </form>
         </p>
       )}

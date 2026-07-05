@@ -3,6 +3,7 @@ import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-ki
 import { RuleCard } from './RuleCard'
 import { newId } from '../lib/id'
 import type { Rule, RuleSetDef } from '../types/rules'
+import { useLang } from '../i18n/LangContext'
 
 interface Props {
   rules: Rule[]
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function RuleList({ rules, ruleSets, onChange }: Props) {
+  const { t } = useLang()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
 
   function addRule() {
@@ -36,12 +38,10 @@ export function RuleList({ rules, ruleSets, onChange }: Props) {
 
   return (
     <div className="card">
-      <h2>4. Routing rules</h2>
-      <p className="help-text">
-        Matched top to bottom — the first matching rule wins. Drag the handle to reorder.
-      </p>
+      <h2>{t('ruleList.heading')}</h2>
+      <p className="help-text">{t('ruleList.help')}</p>
 
-      {rules.length === 0 && <p className="help-text">No rules yet.</p>}
+      {rules.length === 0 && <p className="help-text">{t('ruleList.empty')}</p>}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={rules.map((rule) => rule.id)} strategy={verticalListSortingStrategy}>
@@ -58,7 +58,7 @@ export function RuleList({ rules, ruleSets, onChange }: Props) {
       </DndContext>
 
       <button type="button" onClick={addRule}>
-        + Add rule
+        {t('ruleList.addRule')}
       </button>
     </div>
   )

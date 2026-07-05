@@ -1,5 +1,6 @@
 import { CONDITION_TYPES, conditionTypeInfo, type Condition, type ConditionType } from '../types/rules'
 import type { RuleSetDef } from '../types/rules'
+import { useLang } from '../i18n/LangContext'
 
 interface Props {
   condition: Condition
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function ConditionEditor({ condition, ruleSets, onChange, onRemove }: Props) {
+  const { t } = useLang()
   const info = conditionTypeInfo(condition.type)
 
   function setType(type: ConditionType) {
@@ -29,18 +31,18 @@ export function ConditionEditor({ condition, ruleSets, onChange, onRemove }: Pro
         <select value={condition.type} onChange={(event) => setType(event.target.value as ConditionType)}>
           {CONDITION_TYPES.map((entry) => (
             <option key={entry.type} value={entry.type}>
-              {entry.label}
+              {t(entry.labelKey)}
             </option>
           ))}
         </select>
-        {info.help && <p className="help-text">{info.help}</p>}
+        {info.helpKey && <p className="help-text">{t(info.helpKey)}</p>}
       </div>
 
       <div className="field">
         {info.valueKind === 'text' && (
           <input
             type="text"
-            placeholder={`${info.placeholder ?? ''} (comma-separated)`}
+            placeholder={`${info.placeholder ?? ''} ${t('condition.commaSeparated')}`}
             value={condition.values.join(', ')}
             onChange={(event) =>
               onChange({
@@ -69,11 +71,11 @@ export function ConditionEditor({ condition, ruleSets, onChange, onRemove }: Pro
           </div>
         )}
 
-        {info.valueKind === 'boolean' && <p className="help-text">Matches automatically.</p>}
+        {info.valueKind === 'boolean' && <p className="help-text">{t('condition.matchesAutomatically')}</p>}
 
         {info.valueKind === 'rule_set' && (
           <div className="checkbox-group">
-            {ruleSets.length === 0 && <p className="help-text">No rule sets defined yet — add one below.</p>}
+            {ruleSets.length === 0 && <p className="help-text">{t('condition.noRuleSets')}</p>}
             {ruleSets.map((ruleSet) => (
               <label key={ruleSet.id}>
                 <input
@@ -88,7 +90,7 @@ export function ConditionEditor({ condition, ruleSets, onChange, onRemove }: Pro
         )}
       </div>
 
-      <button type="button" className="danger" onClick={onRemove} aria-label="Remove condition">
+      <button type="button" className="danger" onClick={onRemove} aria-label={t('condition.removeAria')}>
         ×
       </button>
     </div>

@@ -1,3 +1,5 @@
+import type { TranslationKey } from '../i18n/translations'
+
 export type ConditionType =
   | 'domain'
   | 'domain_suffix'
@@ -41,8 +43,8 @@ export interface RuleSetDef {
 
 export interface ConditionTypeInfo {
   type: ConditionType
-  label: string
-  help?: string
+  labelKey: TranslationKey
+  helpKey?: TranslationKey
   valueKind: 'text' | 'enum' | 'rule_set' | 'boolean'
   placeholder?: string
   enumOptions?: string[]
@@ -51,81 +53,81 @@ export interface ConditionTypeInfo {
 export const CONDITION_TYPES: ConditionTypeInfo[] = [
   {
     type: 'domain',
-    label: 'Domain (exact)',
+    labelKey: 'condition.domain.label',
     valueKind: 'text',
     placeholder: 'example.com',
   },
   {
     type: 'domain_suffix',
-    label: 'Domain suffix',
+    labelKey: 'condition.domain_suffix.label',
     valueKind: 'text',
     placeholder: '.example.com',
   },
   {
     type: 'domain_keyword',
-    label: 'Domain keyword',
+    labelKey: 'condition.domain_keyword.label',
     valueKind: 'text',
     placeholder: 'google',
   },
   {
     type: 'domain_regex',
-    label: 'Domain regex',
+    labelKey: 'condition.domain_regex.label',
     valueKind: 'text',
     placeholder: '^stun\\..+',
   },
   {
     type: 'rule_set',
-    label: 'Rule set (geosite/geoip)',
-    help: 'References a rule set defined below, fetched by sing-box from a remote .srs file.',
+    labelKey: 'condition.rule_set.label',
+    helpKey: 'condition.rule_set.help',
     valueKind: 'rule_set',
   },
   {
     type: 'ip_cidr',
-    label: 'IP CIDR',
+    labelKey: 'condition.ip_cidr.label',
     valueKind: 'text',
     placeholder: '10.0.0.0/24',
   },
   {
     type: 'ip_is_private',
-    label: 'Private IP (LAN)',
-    help: 'Matches RFC1918/link-local destinations — no values needed, just pick an action.',
+    labelKey: 'condition.ip_is_private.label',
+    helpKey: 'condition.ip_is_private.help',
     valueKind: 'boolean',
   },
   {
     type: 'port',
-    label: 'Port',
+    labelKey: 'condition.port.label',
     valueKind: 'text',
     placeholder: '443',
   },
   {
     type: 'port_range',
-    label: 'Port range',
+    labelKey: 'condition.port_range.label',
     valueKind: 'text',
     placeholder: '1000:2000',
   },
   {
     type: 'network',
-    label: 'Network',
+    labelKey: 'condition.network.label',
     valueKind: 'enum',
     enumOptions: ['tcp', 'udp'],
   },
   {
     type: 'protocol',
-    label: 'Protocol',
+    labelKey: 'condition.protocol.label',
     valueKind: 'enum',
     enumOptions: ['http', 'tls', 'quic', 'dns', 'stun', 'bittorrent'],
   },
   {
     type: 'process_name',
-    label: 'Process name',
-    help: 'Only works when sing-box runs as a full local client with OS process-list access. Target platforms: Windows and Linux. On Linux this needs root/CAP_NET_ADMIN — not available on a router or restricted environment.',
+    labelKey: 'condition.process_name.label',
+    helpKey: 'condition.process_name.help',
     valueKind: 'text',
     placeholder: 'firefox.exe',
   },
   {
     type: 'process_path',
-    label: 'Process path',
-    help: 'Same platform/permission caveat as process name.',
+    labelKey: 'condition.process_path.label',
+    helpKey: 'condition.process_path.help',
     valueKind: 'text',
     placeholder: '/usr/bin/firefox',
   },

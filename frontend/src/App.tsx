@@ -1,19 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ClientInfo } from './components/ClientInfo'
 import { ConfigPaste } from './components/ConfigPaste'
-import { OutboundMapping } from './components/OutboundMapping'
 import { RuleSetManager } from './components/RuleSetManager'
 import { RuleList } from './components/RuleList'
 import { DefaultOutboundToggle } from './components/DefaultOutboundToggle'
+import { RegionSelector } from './components/RegionSelector'
 import { OutputPanel } from './components/OutputPanel'
+import { LanguageSwitcher } from './components/LanguageSwitcher'
 import { buildOutputConfig } from './lib/buildConfig'
 import { DEFAULT_CONFIG_TEXT } from './lib/defaultConfig'
 import { listOutbounds } from './types/singbox'
 import type { SingBoxConfig } from './types/singbox'
 import type { Action, Rule, RuleSetDef } from './types/rules'
 import type { ClientResponse, VlessClient } from './types/clients'
+import type { Region } from './types/region'
+import { useLang } from './i18n/LangContext'
 
 export function App() {
+  const { lang, setLang, t } = useLang()
   const [client, setClient] = useState<VlessClient | null>(null)
   const [clientError, setClientError] = useState<string | null>(null)
 
@@ -28,6 +32,7 @@ export function App() {
   const [ruleSets, setRuleSets] = useState<RuleSetDef[]>([])
   const [rules, setRules] = useState<Rule[]>([])
   const [defaultAction, setDefaultAction] = useState<Action>('direct')
+  const [region, setRegion] = useState<Region>('default')
 
   useEffect(() => {
     fetch('/api/client')
@@ -71,18 +76,17 @@ export function App() {
     setDirectTag(direct?.tag ?? '')
     setProxyTag(proxy?.tag ?? '')
     setProxyOutboundIndex(proxy?.index ?? null)
-    // Re-detect only when a new config is pasted, not on every outbound-mapping edit.
   }, [parsedConfig])
 
   const warnings = useMemo(() => {
     const messages: string[] = []
-    if (parsedConfig && !directTag) messages.push('No direct outbound selected — rules using "Direct" will reference an empty tag.')
-    if (parsedConfig && !proxyTag) messages.push('No proxy outbound selected — rules using "Proxy" will reference an empty tag.')
+    if (parsedConfig && !directTag) messages.push(t('warnings.noDirect'))
+    if (parsedConfig && !proxyTag) messages.push(t('warnings.noProxy'))
     if (rules.some((rule) => rule.conditions.length === 0)) {
-      messages.push('One or more rules have no conditions and will be dropped from the output.')
+      messages.push(t('warnings.emptyRules'))
     }
     return messages
-  }, [parsedConfig, directTag, proxyTag, rules])
+  }, [parsedConfig, directTag, proxyTag, rules, t])
 
   const outputConfig = useMemo(() => {
     if (!parsedConfig) return null
@@ -95,29 +99,25 @@ export function App() {
       proxyTag,
       proxyOutboundIndex,
       selectedClient: client,
+      region,
     })
-  }, [parsedConfig, rules, ruleSets, defaultAction, directTag, proxyTag, proxyOutboundIndex, client])
+  }, [parsedConfig, rules, ruleSets, defaultAction, directTag, proxyTag, proxyOutboundIndex, client, region])
 
   return (
     <div className="app">
-      <h1>VLESS Config Generator</h1>
-      <p className="subtitle">Build sing-box routing rules for your VLESS/Reality client config.</p>
+      <div className="app-header">
+        <div>
+          <h1>{t('app.title')}</h1>
+          <p className="subtitle">{t('app.subtitle')}</p>
+        </div>
+        <LanguageSwitcher value={lang} onChange={setLang} />
+      </div>
 
       <ClientInfo client={client} loadError={clientError} />
 
-      <ConfigPaste value={configText} onChange={setConfigText} error={parseError} />
+      <RegionSelector value={region} onChange={setRegion} />
 
-      <OutboundMapping
-        outbounds={outbounds}
-        directTag={directTag}
-        proxyTag={proxyTag}
-        proxyOutboundIndex={proxyOutboundIndex}
-        onDirectTagChange={setDirectTag}
-        onProxyChange={(tag, index) => {
-          setProxyTag(tag)
-          setProxyOutboundIndex(index)
-        }}
-      />
+      <ConfigPaste value={configText} onChange={setConfigText} error={parseError} />
 
       <RuleSetManager ruleSets={ruleSets} onChange={setRuleSets} />
 

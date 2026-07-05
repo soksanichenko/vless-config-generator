@@ -2,7 +2,7 @@ database_url: "postgresql://postgres:postgres@localhost:5432/vless_admin"
 redis_url: "redis://localhost:6379"
 cache_ttl: 86400
 
-vless_server: "zelgray.work"
+vless_server: "vless.zelgray.work"
 vless_server_port: 443
 vless_public_key: ""
 vless_short_id: ""

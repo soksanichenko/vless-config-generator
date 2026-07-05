@@ -56,7 +56,8 @@ Docker network and shared Postgres/Redis containers `hotline-listing` uses.
 | `vless_config_generator_api_database_url` | built from shared `postgresql_container_name`/`postgres_password` | Postgres URL for the `clients` table |
 | `vless_config_generator_api_redis_url` | built from shared `redis_container_name` | Redis URL for the rule-set category cache |
 | `vless_config_generator_api_cache_ttl` | `86400` | Rule-set category cache TTL (seconds) |
-| `vless_config_generator_vless_server` | `zelgray.work` | Server/SNI written into every client's API response |
+| `vless_config_generator_vless_server` | `vless.zelgray.work` | Connect address written into every client's API response (zelgray.work is proxied through Cloudflare, so this CNAME is used instead) |
+| `vless_config_generator_vless_server_name` | `zelgray.work` | Reality SNI camouflage target written into every client's API response |
 | `vless_config_generator_vless_server_port` | `443` | Port written into every client's API response |
 | `vless_config_generator_github_repo` | `soksanichenko/infra` | Repo the API dispatches `workflow_dispatch` against |
 | `vless_config_generator_github_workflow_file` | `add-vless-client.yml` | Workflow file name in that repo |

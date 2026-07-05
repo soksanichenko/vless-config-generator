@@ -1,4 +1,5 @@
 import type { Action } from '../types/rules'
+import { useLang } from '../i18n/LangContext'
 
 interface Props {
   value: Action
@@ -6,16 +7,17 @@ interface Props {
 }
 
 export function DefaultOutboundToggle({ value, onChange }: Props) {
+  const { t } = useLang()
   return (
     <div className="card">
-      <h2>5. Default outbound</h2>
-      <p className="help-text">Where traffic goes when no rule above matches. Pick one — there's no implicit default.</p>
+      <h2>{t('defaultOutbound.heading')}</h2>
+      <p className="help-text">{t('defaultOutbound.help')}</p>
       <div className="pill-group">
         <button type="button" className={value === 'direct' ? 'active' : ''} onClick={() => onChange('direct')}>
-          Direct
+          {t('common.direct')}
         </button>
         <button type="button" className={value === 'proxy' ? 'active' : ''} onClick={() => onChange('proxy')}>
-          Proxy
+          {t('common.proxy')}
         </button>
       </div>
     </div>

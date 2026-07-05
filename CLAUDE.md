@@ -20,6 +20,7 @@ vless-config-generator/
 ├── frontend/                        # Vite + React + TypeScript app
 │   └── src/
 │       ├── components/              # rule builder UI
+│       ├── i18n/                    # EN/UA/RU translations, LangContext, useLang()
 │       ├── lib/                     # config parsing/output, client injection, backend API calls
 │       └── types/                   # sing-box config, rule, and client types
 ├── sources/                         # FastAPI backend (vless_admin) — client data, rule-set

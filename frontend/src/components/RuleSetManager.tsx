@@ -3,6 +3,7 @@ import { getRuleSetCategories } from '../lib/fetchRuleSetCategories'
 import { newId } from '../lib/id'
 import { GEOIP_CATEGORIES, GEOSITE_CATEGORIES } from '../lib/ruleSetCategories'
 import type { RuleSetDef } from '../types/rules'
+import { useLang } from '../i18n/LangContext'
 
 interface Props {
   ruleSets: RuleSetDef[]
@@ -15,6 +16,7 @@ function templateUrl(kind: 'geosite' | 'geoip', category: string): string {
 }
 
 export function RuleSetManager({ ruleSets, onChange }: Props) {
+  const { t } = useLang()
   const [kind, setKind] = useState<'geosite' | 'geoip'>('geosite')
   const [category, setCategory] = useState('')
   const [customTag, setCustomTag] = useState('')
@@ -62,18 +64,15 @@ export function RuleSetManager({ ruleSets, onChange }: Props) {
 
   return (
     <div className="card">
-      <h2>Rule sets (geosite / geoip)</h2>
-      <p className="help-text">
-        Reusable remote rule sets, sourced from the sing-geosite/sing-geoip .srs releases. Rules
-        below can match against any rule set defined here.
-      </p>
+      <h2>{t('ruleSets.heading')}</h2>
+      <p className="help-text">{t('ruleSets.help')}</p>
 
       {ruleSets.length > 0 && (
         <div className="chip-list">
           {ruleSets.map((ruleSet) => (
             <span className="chip" key={ruleSet.id}>
               {ruleSet.tag}
-              <button type="button" onClick={() => remove(ruleSet.id)} aria-label={`Remove ${ruleSet.tag}`}>
+              <button type="button" onClick={() => remove(ruleSet.id)} aria-label={t('ruleSets.removeAria', { tag: ruleSet.tag })}>
                 ×
               </button>
             </span>
@@ -83,14 +82,14 @@ export function RuleSetManager({ ruleSets, onChange }: Props) {
 
       <div className="row">
         <div className="field">
-          <label htmlFor="ruleset-kind">Category source</label>
+          <label htmlFor="ruleset-kind">{t('ruleSets.categorySource')}</label>
           <select id="ruleset-kind" value={kind} onChange={(event) => setKind(event.target.value as 'geosite' | 'geoip')}>
             <option value="geosite">geosite</option>
             <option value="geoip">geoip</option>
           </select>
         </div>
         <div className="field">
-          <label htmlFor="ruleset-category">Category name</label>
+          <label htmlFor="ruleset-category">{t('ruleSets.categoryName')}</label>
           <input
             key={kind}
             id="ruleset-category"
@@ -98,7 +97,7 @@ export function RuleSetManager({ ruleSets, onChange }: Props) {
             list={`ruleset-category-options-${kind}`}
             value={category}
             onChange={(event) => setCategory(event.target.value)}
-            placeholder="netflix, cn, private, ..."
+            placeholder={t('ruleSets.categoryPlaceholder')}
           />
           <datalist id="ruleset-category-options-geosite">
             {geositeOptions.map((option) => (
@@ -114,37 +113,37 @@ export function RuleSetManager({ ruleSets, onChange }: Props) {
         <div className="field" style={{ flex: '0 0 auto', justifyContent: 'flex-end' }}>
           <label>&nbsp;</label>
           <button type="button" onClick={addQuick} disabled={!category.trim()}>
-            Add
+            {t('ruleSets.add')}
           </button>
         </div>
       </div>
 
       <details>
-        <summary className="help-text">Advanced: custom rule set URL</summary>
+        <summary className="help-text">{t('ruleSets.advanced')}</summary>
         <div className="row spacer-top">
           <div className="field">
-            <label htmlFor="ruleset-tag">Tag</label>
+            <label htmlFor="ruleset-tag">{t('ruleSets.tag')}</label>
             <input
               id="ruleset-tag"
               type="text"
               value={customTag}
               onChange={(event) => setCustomTag(event.target.value)}
-              placeholder="my-custom-set"
+              placeholder={t('ruleSets.tagPlaceholder')}
             />
           </div>
           <div className="field">
-            <label htmlFor="ruleset-custom-kind">Kind</label>
+            <label htmlFor="ruleset-custom-kind">{t('ruleSets.kind')}</label>
             <select
               id="ruleset-custom-kind"
               value={customKind}
               onChange={(event) => setCustomKind(event.target.value as 'geosite' | 'geoip')}
             >
-              <option value="geosite">geosite (domain-based)</option>
-              <option value="geoip">geoip (IP-based)</option>
+              <option value="geosite">{t('ruleSets.kindGeosite')}</option>
+              <option value="geoip">{t('ruleSets.kindGeoip')}</option>
             </select>
           </div>
           <div className="field">
-            <label htmlFor="ruleset-format">Format</label>
+            <label htmlFor="ruleset-format">{t('ruleSets.format')}</label>
             <select
               id="ruleset-format"
               value={customFormat}
@@ -155,19 +154,19 @@ export function RuleSetManager({ ruleSets, onChange }: Props) {
             </select>
           </div>
           <div className="field">
-            <label htmlFor="ruleset-url">URL</label>
+            <label htmlFor="ruleset-url">{t('ruleSets.url')}</label>
             <input
               id="ruleset-url"
               type="text"
               value={customUrl}
               onChange={(event) => setCustomUrl(event.target.value)}
-              placeholder="https://.../custom.srs"
+              placeholder={t('ruleSets.urlPlaceholder')}
             />
           </div>
           <div className="field" style={{ flex: '0 0 auto', justifyContent: 'flex-end' }}>
             <label>&nbsp;</label>
             <button type="button" onClick={addCustom} disabled={!customTag.trim() || !customUrl.trim()}>
-              Add
+              {t('ruleSets.add')}
             </button>
           </div>
         </div>
