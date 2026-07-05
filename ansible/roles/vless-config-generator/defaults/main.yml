@@ -3,14 +3,33 @@
 vless_config_generator_local_source_dir: "{{ playbook_dir }}/../.."
 
 vless_config_generator_domain: "vless-gen.zelgray.work"
-vless_config_generator_htpasswd_realm: "vless-config-generator"
-vless_config_generator_htpasswd_file: "vless-config-generator-access.htpasswd"
 
-# Single-client data for the rendered clients.json — matches infra's current
-# xray.vless block (one client, not yet a list of Infisical secrets).
-vless_config_generator_client_email: "zel.gray@gmail.com"
-vless_config_generator_client_server: "zelgray.work"
-vless_config_generator_client_port: 443
+# Separate, static admin-only credential — deliberately independent of the
+# API's live client-cred auth, so a bug/outage there can't lock the admin out.
+vless_config_generator_admin_htpasswd_realm: "vless-config-generator-admin"
+vless_config_generator_admin_htpasswd_file: "vless-config-generator-admin-access.htpasswd"
+
+# API backend (client dropdown data, rule-set category cache, live auth, admin panel)
+vless_config_generator_api_container_name: "vless-config-generator-api"
+vless_config_generator_api_image: "vless-config-generator-api:local"
+vless_config_generator_api_http_port: 8999
+vless_config_generator_api_data_dir: "{{ docker_volumes_directory }}/vless-config-generator-api"
+vless_config_generator_api_upstream_name: "vless_config_generator_api_upstream"
+
+vless_config_generator_api_database_url: "postgresql://postgres:{{ postgres_password }}@{{ postgresql_container_name }}:5432/vless_admin"
+vless_config_generator_api_redis_url: "redis://{{ redis_container_name }}:6379"
+vless_config_generator_api_cache_ttl: 86400
+
+# Shared VLESS/Reality server parameters the API bakes into every client's
+# dropdown/config data — identical to what xray's own config uses.
+vless_config_generator_vless_server: "zelgray.work"
+vless_config_generator_vless_server_port: 443
+
+# GitHub Actions dispatch — applies a new client to the real xray server via
+# infra's add-vless-client.yml workflow (see DESIGN.md). This backend never
+# writes to Infisical directly.
+vless_config_generator_github_repo: "soksanichenko/infra"
+vless_config_generator_github_workflow_file: "add-vless-client.yml"
 
 # Nginx — defaults match infra's nginx role
 nginx_docker_container_name: 'nginx-server'

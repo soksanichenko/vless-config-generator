@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>vless-config-generator — Admin</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #1b1e24; }
+    h1 { font-size: 1.3rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #ddd; font-size: 0.9rem; }
+    .status-pending { color: #a06a00; }
+    .status-dispatched { color: #157347; }
+    form.add-client { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
+    input[type="email"] { flex: 1; padding: 0.4rem; }
+    button { padding: 0.4rem 0.9rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<h1>VLESS clients</h1>
+
+<table>
+  <thead>
+    <tr><th>Email</th><th>UUID</th><th>Status</th><th>Created</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for client in clients %}
+    <tr>
+      <td>{{ client.email }}</td>
+      <td><code>{{ client.client_uuid }}</code></td>
+      <td class="status-{{ client.status }}">{{ client.status }}</td>
+      <td>{{ client.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>
+        {% if client.status != "dispatched" %}
+        <form method="post" action="/admin/clients/{{ client.id }}/retry">
+          <button type="submit">Retry</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    {% if not clients %}
+    <tr><td colspan="5">No clients yet.</td></tr>
+    {% endif %}
+  </tbody>
+</table>
+
+<form class="add-client" method="post" action="/admin/clients">
+  <input type="email" name="email" placeholder="new-client@example.com" required>
+  <button type="submit">Add client</button>
+</form>
+
+<p style="color:#666;font-size:0.85rem;margin-top:1rem">
+  Adding a client dispatches the <code>infra</code> repo's GitHub Actions
+  workflow, which writes the new client's UUID to Infisical and redeploys
+  xray. "dispatched" means the trigger call succeeded — it does not confirm
+  the xray server actually restarted with the new client.
+</p>
+
+</body>
+</html>

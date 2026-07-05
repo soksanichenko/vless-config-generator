@@ -29,15 +29,76 @@
   tags:
     - vless-config-generator
 
-- name: Render vless-config-generator clients.json
+- name: Create vless-config-generator-api data directory
+  ansible.builtin.file:
+    path: "{{ vless_config_generator_api_data_dir }}"
+    state: directory
+    mode: '0755'
+  become: yes
+  tags:
+    - vless-config-generator
+    - vless-config-generator-api
+
+- name: Sync vless-config-generator-api source to build directory
+  ansible.posix.synchronize:
+    src: "{{ vless_config_generator_local_source_dir }}/sources/"
+    dest: "{{ vless_config_generator_api_data_dir }}/"
+    delete: yes
+    owner: no
+    group: no
+    rsync_opts:
+      - "--exclude=__pycache__"
+      - "--exclude=*.pyc"
+      - "--exclude=.venv"
+      - "--exclude=config.yaml"
+  become: yes
+  register: _vless_config_generator_api_source
+  tags:
+    - vless-config-generator
+    - vless-config-generator-api
+
+- name: Build vless-config-generator-api Docker image
+  community.docker.docker_image:
+    name: vless-config-generator-api
+    tag: local
+    source: build
+    build:
+      path: "{{ vless_config_generator_api_data_dir }}"
+      pull: yes
+    force_source: "{{ _vless_config_generator_api_source.changed }}"
+  become: yes
+  tags:
+    - vless-config-generator
+    - vless-config-generator-api
+
+- name: Deploy vless-config-generator-api config
   ansible.builtin.template:
-    src: clients.json.j2
-    dest: "{{ nginx_html_path }}/static/vless-config-generator/clients.json"
-    mode: '0644'
+    src: config.yaml.j2
+    dest: "{{ vless_config_generator_api_data_dir }}/config.yaml"
+    mode: '0600'
   become: yes
   no_log: true
   tags:
     - vless-config-generator
+    - vless-config-generator-api
+
+- name: Deploy vless-config-generator-api container
+  community.docker.docker_container:
+    name: "{{ vless_config_generator_api_container_name }}"
+    image: "{{ vless_config_generator_api_image }}"
+    state: started
+    restart_policy: unless-stopped
+    recreate: "{{ docker_force_recreate | default(false) }}"
+    pull: false
+    networks:
+      - name: "{{ docker_network }}"
+    log_driver: journald
+    volumes:
+      - "{{ vless_config_generator_api_data_dir }}/config.yaml:/app/config.yaml:ro"
+  become: yes
+  tags:
+    - vless-config-generator
+    - vless-config-generator-api
 
 - name: Configure vless-config-generator nginx
   import_tasks: nginx.yml

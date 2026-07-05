@@ -7,3 +7,10 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-json
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.13
+    hooks:
+      - id: ruff
+        args: [sources/]
+      - id: ruff-format
+        args: [sources/]

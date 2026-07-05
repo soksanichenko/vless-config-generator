@@ -1,0 +1,6 @@
+#!/bin/sh
+set -e
+
+alembic -c alembic.ini upgrade head
+
+exec uvicorn vless_admin.app:app --host 0.0.0.0 --port 8999

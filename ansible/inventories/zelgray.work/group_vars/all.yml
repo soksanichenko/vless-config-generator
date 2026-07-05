@@ -5,6 +5,12 @@ infisical_path: "/hosts/zelgray-work"
 docker_network: "active"
 docker_volumes_directory: "/opt/docker"
 
+nginx_custom_upstream_path: "{{ nginx_confd_path }}/custom-upstream"
+
+postgresql_container_name: "postgresql"
+redis_container_name: "redis"
+postgres_password: "{{ infisical_secrets.secrets['postgres-db-password'] }}"
+
 cf_zone_domain: "zelgray.work"
 cf_api_token_clear_cache: "{{ infisical_secrets.secrets['cf-api-token-clear-cache'] }}"
 cf_purge_cache: true

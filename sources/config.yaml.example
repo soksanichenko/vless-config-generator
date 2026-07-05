@@ -1,0 +1,13 @@
+database_url: "postgresql://postgres:postgres@localhost:5432/vless_admin"
+redis_url: "redis://localhost:6379"
+cache_ttl: 86400
+
+vless_server: "zelgray.work"
+vless_server_port: 443
+vless_public_key: ""
+vless_short_id: ""
+vless_server_name: "zelgray.work"
+
+github_token: ""
+github_repo: "owner/infra"
+github_workflow_file: "add-vless-client.yml"

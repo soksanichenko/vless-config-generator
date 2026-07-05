@@ -8,15 +8,26 @@
     - vless-config-generator
     - vless-config-generator-nginx
 
-- name: Generate vless-config-generator htpasswd file
+- name: Generate vless-config-generator admin htpasswd file
   community.general.htpasswd:
-    path: "{{ nginx_htpasswd_path }}/{{ vless_config_generator_htpasswd_file }}"
-    name: "{{ infisical_secrets.secrets['vless-config-generator-htpasswd'].split(':')[0] }}"
-    password: "{{ infisical_secrets.secrets['vless-config-generator-htpasswd'].split(':')[1] }}"
+    path: "{{ nginx_htpasswd_path }}/{{ vless_config_generator_admin_htpasswd_file }}"
+    name: "{{ infisical_secrets.secrets['vless-config-generator-admin-htpasswd'].split(':')[0] }}"
+    password: "{{ infisical_secrets.secrets['vless-config-generator-admin-htpasswd'].split(':')[1] }}"
     crypt_scheme: bcrypt
     mode: '0644'
   become: yes
   no_log: true
+  notify: Reload nginx
+  tags:
+    - vless-config-generator
+    - vless-config-generator-nginx
+
+- name: Deploy vless-config-generator-api nginx upstream config
+  ansible.builtin.template:
+    src: upstream.conf.j2
+    dest: "{{ nginx_custom_upstream_path }}/vless-config-generator-api.conf"
+    mode: '0644'
+  become: yes
   notify: Reload nginx
   tags:
     - vless-config-generator

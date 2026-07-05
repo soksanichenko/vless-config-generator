@@ -30,36 +30,20 @@ function writeCache(kind: 'geosite' | 'geoip', categories: string[]): void {
   }
 }
 
-async function fetchFromGitHub(kind: 'geosite' | 'geoip'): Promise<string[]> {
-  const repo = kind === 'geosite' ? 'sing-geosite' : 'sing-geoip'
-  const headers = { Accept: 'application/vnd.github+json' }
-
-  const branchResponse = await fetch(`https://api.github.com/repos/SagerNet/${repo}/branches/rule-set`, {
-    headers,
-  })
-  if (!branchResponse.ok) throw new Error(`GitHub branch lookup failed: ${branchResponse.status}`)
-  const branch = (await branchResponse.json()) as { commit: { sha: string } }
-
-  const treeResponse = await fetch(
-    `https://api.github.com/repos/SagerNet/${repo}/git/trees/${branch.commit.sha}`,
-    { headers },
-  )
-  if (!treeResponse.ok) throw new Error(`GitHub tree lookup failed: ${treeResponse.status}`)
-  const tree = (await treeResponse.json()) as { tree: { path: string }[] }
-
-  const pattern = new RegExp(`^${kind}-(.+)\\.srs$`)
-  const categories = tree.tree
-    .map((entry) => entry.path.match(pattern)?.[1])
-    .filter((category): category is string => Boolean(category))
-    .sort()
-
-  if (categories.length === 0) throw new Error('GitHub tree returned no matching rule sets')
-  return categories
+async function fetchFromBackend(kind: 'geosite' | 'geoip'): Promise<string[]> {
+  const response = await fetch(`/api/ruleset-categories?kind=${kind}`)
+  if (!response.ok) throw new Error(`Backend category lookup failed: ${response.status}`)
+  const body = (await response.json()) as { categories: string[] }
+  if (!body.categories || body.categories.length === 0) {
+    throw new Error('Backend returned no matching rule sets')
+  }
+  return body.categories
 }
 
 /**
  * Resolves the known geosite/geoip category names, preferring a same-day
- * localStorage cache, then a live GitHub fetch, then the bundled fallback list.
+ * localStorage cache, then this app's own backend (which does the actual
+ * GitHub fetch + Redis caching server-side), then the bundled fallback list.
  */
 export async function getRuleSetCategories(kind: 'geosite' | 'geoip'): Promise<string[]> {
   const cached = readCache(kind)
@@ -68,7 +52,7 @@ export async function getRuleSetCategories(kind: 'geosite' | 'geoip'): Promise<s
   }
 
   try {
-    const categories = await fetchFromGitHub(kind)
+    const categories = await fetchFromBackend(kind)
     writeCache(kind, categories)
     return categories
   } catch {

@@ -31,7 +31,7 @@ export function App() {
   const [defaultAction, setDefaultAction] = useState<Action>('direct')
 
   useEffect(() => {
-    fetch('/clients.json')
+    fetch('/api/clients')
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
         return response.json() as Promise<ClientsFile>

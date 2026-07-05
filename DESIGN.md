@@ -51,36 +51,92 @@ inbounds, DNS) passes through untouched.
 Deployed on the same VDS (zelgray.work) that already runs XRay (VLESS+Reality),
 so the server-side client list is a known quantity — no reason to make the user
 type UUID/public key/short ID/SNI by hand. Instead: a dropdown of existing
-clients, populated from data rendered at **deploy time** by Ansible (Jinja2),
-not entered live in the browser.
+clients.
 
-Source of truth (in `infra`, read-only from this repo's perspective):
-- `infra/ansible/roles/xray/templates/config.json.j2` — the actual XRay server
-  config template.
-- `infra/ansible/inventories/zelgray.work/group_vars/all.yml` (`vless:` block,
-  around line 81) — `port`, `clients: [{id, email}]`, `private_key`,
-  `public_key`, `sid`. All values sourced from Infisical `/hosts/zelgray-work`
-  (`vless-client-id`, `vless-private-key`, `vless-public-key`, `vless-sid`).
+**Superseded design note:** this originally meant a `clients.json` rendered
+at **deploy time** by this repo's own Ansible role, direct from infra's
+Infisical secrets, blocked on `infra`'s `xray.vless.clients` secret
+structure (then a single flat secret). That blocker turned out to be moot —
+`xray.vless.clients` was **already a YAML list** in infra, just hand-edited
+per client. The dropdown is now served live by this repo's own backend
+(`/api/clients`, backed by its own Postgres `clients` table — see "Admin
+panel" below) instead of a deploy-time static file; `infra`'s Infisical
+secrets are still the source of truth for the *shared* Reality parameters
+(`vless-public-key`, `vless-sid`), templated into the backend's
+`config.yaml` the same way `clients.json.j2` used to read them.
 
-**Current limitation:** as of this design, `xray.vless.clients` in infra has
-exactly **one** client (`zel.gray@gmail.com`, secret key `vless-client-id` —
-singular, not a list of secrets). A real multi-client dropdown needs that
-Infisical secret structure to change (e.g. a JSON blob of multiple id/email
-pairs instead of one flat secret) — **this is a prerequisite change in the
-`infra` repo, not yet done, out of scope for this repo to make unilaterally.**
+## Admin panel + client-credential site auth
 
-Planned mechanism once that exists: this repo's own Ansible role renders a
-`clients.json` (or embeds the data into the static HTML) from those same
-Infisical secrets — reading `/hosts/zelgray-work` directly via its own
-`pre_tasks/infisical.yml`, with no code dependency on the `infra` repo itself
-(same pattern as `hotline-listing`).
+Two asks drove introducing a real backend (`sources/`, FastAPI) into what
+was a static site: (1) a browser-based admin page to add new VLESS clients,
+(2) gating `vless-gen.zelgray.work` with existing client credentials
+instead of a separate static password. Key decisions (see the plan this was
+implemented from for the full ground-truth investigation):
+
+- The backend lives in **this repo**, not `infra`, and deliberately **does
+  not hold Infisical write credentials**. Adding a client
+  (`POST /admin/clients`) generates a UUID, stores it in this repo's own
+  Postgres `clients` table (status `pending`/`dispatched`), then calls
+  GitHub's `workflow_dispatch` API against a workflow in `infra`
+  (`add-vless-client.yml`) — that workflow is the only thing that writes to
+  Infisical and runs the actual xray `ansible-playbook` deploy. This keeps
+  the always-on container's blast radius small (a narrow "dispatch this one
+  workflow" GitHub token) instead of embedding a live secret-writing
+  credential in a permanently-running service.
+- **Prerequisite in `infra`, now implemented there** (separate repo, own
+  history): `xray.vless.clients` was restructured to read from one
+  JSON-array Infisical secret (`clients: "{{ infisical_secrets.secrets
+  ['vless-clients'] | from_json }}"`), and `.github/workflows/
+  add-vless-client.yml` (`workflow_dispatch`, inputs `email`/`uuid`) logs
+  into Infisical, appends to that secret via `playbooks/
+  add_vless_client.yml`, then runs `playbooks/xray.yml`. Runs on a
+  **GitHub-hosted runner** (`runs-on: ubuntu-latest`) — a self-hosted
+  runner on the VDS was considered but rejected in favor of less manual
+  maintenance; the workflow instead loads an SSH key from the
+  `SSH_PRIVATE_KEY` repo secret (`webfactory/ssh-agent`) to reach the VDS,
+  plus `INFISICAL_CLIENT_ID`/`INFISICAL_CLIENT_SECRET` repo secrets
+  (existing shared Infisical identity, not a narrowly-scoped one — a
+  per-secret-scoped Infisical identity turned out not to be possible).
+  This repo's backend holds a GitHub PAT (`actions:write` scoped to
+  `soksanichenko/infra` only, stored in Infisical at `/hosts/zelgray-work`)
+  to call the dispatch API.
+- xray's only reload path (`ansible/roles/xray/handlers/main.yml` in
+  `infra`) is a **hard container restart** (`docker_container: restart:
+  yes`), no SIGHUP/hot-reload. Adding a client always briefly drops
+  existing connections; nothing here changes that.
+- Site login is **Basic Auth via nginx `auth_request`** — no new login page.
+  nginx forwards the browser's `Authorization` header to the backend's
+  `/auth` instead of checking a static htpasswd file. Credential = the
+  client's own `email:uuid` (reuses the existing secret, no new credential
+  type invented).
+- The admin page itself (`/admin/`, server-rendered FastAPI/Jinja2, not a
+  React route — matches `hotline-listing`'s own precedent) is gated by a
+  **separate, static** htpasswd, independent of the live client-cred auth —
+  so a bug/outage in `/auth` can't lock the admin out of fixing it.
+- Stack: FastAPI + PostgreSQL + Redis, following the `hotline-listing`
+  reference pattern on this VDS exactly (same repo layout, same Ansible
+  role shape sourced from `sources/`, same shared Postgres/Redis
+  containers, image built in place via `community.docker.docker_image`, no
+  compose).
+- Bonus consolidation: the geosite/geoip rule-set category fetch (see
+  "Rule-set category autocomplete" below) also moved server-side into this
+  backend's Redis cache, since a backend now exists anyway — every visitor's
+  browser no longer hits the GitHub API directly.
+- "Deployed" status tracking is best-effort/manual in v1 — no confirmation
+  loop from `infra`'s workflow run back into this app; the admin dashboard
+  shows `pending`/`dispatched` (dispatch call succeeded) with a retry
+  button, not a true "xray actually restarted with this client" signal.
 
 ## Access control
 
-Client credentials (UUID, public key, short ID) are sensitive even behind
-Basic Auth-only exposure is the intended bar — same pattern as
-`library.zelgray.work` (`inpx-web-ui`): nginx Basic Auth, htpasswd sourced from
-an Infisical secret under `/hosts/shared`.
+Client credentials (UUID, public key, short ID) are sensitive. Two
+independent gates now, deliberately not chained together:
+- Main site (`/`, `/api/`): nginx `auth_request` against the backend's
+  `/auth` — log in with an existing client's `email:uuid`.
+- Admin panel (`/admin/`): a separate, static htpasswd sourced from an
+  Infisical secret under `/hosts/shared` (`vless-config-generator-admin-
+  htpasswd`) — same historical pattern as `library.zelgray.work`
+  (`inpx-web-ui`), kept independent so it survives an outage in the other.
 
 ## Deployment shape
 
@@ -92,13 +148,14 @@ an Infisical secret under `/hosts/shared`.
   GitHub Pages/Cloudflare Pages hosting. The client-dropdown requirement is
   exactly why: it needs Ansible-rendered, Infisical-sourced data at deploy
   time, which a static host with no build step can't provide.
-- **Static site, no application backend** — HTML/JS/CSS only, no Python app,
-  no Docker container running app logic. This deviates from the
-  `new-service-repo` skill's default assumption (Docker-container-backed
-  service like `hotline-listing`) — when scaffolding this repo with that
-  skill, expect it to ask how to adapt rather than force a Dockerfile/CMD that
-  doesn't apply. The only "backend" activity is the Ansible deploy step that
-  renders `clients.json` and rsyncs static files.
+- **Superseded: "static site, no application backend"** — true at initial
+  scaffold (deviated from the `new-service-repo` skill's default
+  Docker-container-backed assumption, like `hotline-listing`). No longer
+  true: a FastAPI backend (`sources/`) was added for the admin panel and
+  client-credential site auth (see above) — this repo now follows the
+  `hotline-listing` shape it originally diverged from. The frontend itself
+  is still a static build rsynced straight into nginx's html volume; only
+  `/api/`, `/admin/`, and the `auth_request` check go through the backend.
 - **Nginx wiring** — not yet decided subpath vs. subdomain; to be resolved via
   the `new-nginx-service` skill (which owns that decision) once this repo has
   something to wire in. Given the Basic Auth requirement and that this is a
@@ -114,14 +171,17 @@ an Infisical secret under `/hosts/shared`.
    action, drag to reorder).
 4. Set the default outbound (direct/proxy toggle).
 5. Get back the same config with `route` replaced — download or copy.
-6. Everything from step 2 onward runs entirely in the browser; only the
-   client list (step 1) depends on the deploy-time data file.
+6. Everything from step 2 onward runs entirely in the browser; the client
+   list (step 1) and rule-set category autocomplete now depend on this
+   repo's own backend rather than a deploy-time static file (see "Admin
+   panel + client-credential site auth").
 
 ## Open items / not yet decided
 
-- Multi-client support requires an `infra`-side Infisical secret restructure
-  (currently a single flat secret, not a list) — blocked on that being done
-  first. `clients.json` currently renders exactly one client.
+- The `infra`-side prerequisite has landed (see "Admin panel" above), but
+  no live end-to-end test has been run yet — no real `workflow_dispatch`
+  has been triggered, no real xray restart observed. Until that's
+  verified, treat "add client" as implemented-but-unverified in production.
 
 ## Implementation status
 
@@ -166,7 +226,24 @@ an Infisical secret under `/hosts/shared`.
   quick-add and the custom-URL form) so `buildOutputConfig` can tell which
   rule sets are IP-based for the `resolve`-action decision above. Category
   names for quick-add (and its autocomplete datalist) are fetched from the
-  `SagerNet/sing-geosite`/`sing-geoip` GitHub repos' `rule-set` branch at
-  runtime (`frontend/src/lib/fetchRuleSetCategories.ts`), cached in
-  `localStorage` for 24h, falling back to a bundled full snapshot
-  (`frontend/src/lib/ruleSetCategories.ts`) if the fetch fails.
+  `SagerNet/sing-geosite`/`sing-geoip` GitHub repos' `rule-set` branch,
+  now via this repo's own backend (`sources/src/vless_admin/
+  github_categories.py`, Redis-cached) rather than directly from the
+  browser; the frontend (`frontend/src/lib/fetchRuleSetCategories.ts`)
+  still layers a `localStorage` cache in front of that call and falls back
+  to a bundled full snapshot (`frontend/src/lib/ruleSetCategories.ts`) if
+  the backend itself is unreachable.
+- Backend (`sources/`, package `vless_admin`) scaffolded 1:1 on
+  `hotline-listing`'s pattern: FastAPI + SQLAlchemy async/Postgres (`Client`
+  table: `email`, `client_uuid`, `status`, `created_at` — the shared
+  Reality params live in `AppConfig`, not per-row) + Redis cache + Alembic
+  migrations. Routes: `GET /api/clients`, `GET /api/ruleset-categories`,
+  `GET /auth` (nginx `auth_request` target), `GET /admin/` +
+  `POST /admin/clients` + `POST /admin/clients/{id}/retry` (server-rendered
+  Jinja2, `sources/templates/admin/dashboard.html`). Deployed via
+  `community.docker.docker_container` on the shared `docker_network`,
+  alongside the existing static-frontend sync, in the same Ansible role
+  (`ansible/roles/vless-config-generator/`). Nginx now routes `/api/` and
+  `/` through `auth_request` against `/auth`, and `/admin/` through its own
+  separate `auth_basic`/htpasswd — see that role's `README.md` for the full
+  variable/tag reference.
