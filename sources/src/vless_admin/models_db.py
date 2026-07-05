@@ -1,6 +1,6 @@
 """SQLAlchemy ORM models (used by Alembic for autogenerate)."""
 
-from sqlalchemy import DateTime, String, func, text
+from sqlalchemy import BigInteger, DateTime, String, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, MappedColumn, mapped_column
 
@@ -29,10 +29,20 @@ class Client(Base):
         UUID(as_uuid=True), nullable=False, unique=True
     )
     # "pending" until the infra GitHub Actions workflow is successfully
-    # dispatched; "dispatched" after that — not a confirmation the xray
-    # server actually picked it up, just that the trigger call succeeded.
+    # dispatched; "dispatched" after that — just that the trigger call
+    # succeeded, not that xray actually restarted. The real outcome is
+    # tracked separately via github_run_id/_status/_conclusion below.
     status: MappedColumn[str] = mapped_column(
         String, nullable=False, server_default="pending"
+    )
+    # Set by a best-effort lookup after dispatch (workflow_dispatch itself
+    # returns no run id) — None until found, or if it never turns up.
+    github_run_id: MappedColumn[int | None] = mapped_column(BigInteger, nullable=True)
+    # GitHub's own run `status` ("queued"/"in_progress"/"completed") and
+    # `conclusion` ("success"/"failure"/... — None until status=="completed").
+    github_run_status: MappedColumn[str | None] = mapped_column(String, nullable=True)
+    github_run_conclusion: MappedColumn[str | None] = mapped_column(
+        String, nullable=True
     )
     created_at: MappedColumn[DateTime] = mapped_column(
         DateTime(timezone=True),

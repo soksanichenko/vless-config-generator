@@ -143,10 +143,18 @@ implemented from for the full ground-truth investigation):
   "Rule-set category autocomplete" below) also moved server-side into this
   backend's Redis cache, since a backend now exists anyway — every visitor's
   browser no longer hits the GitHub API directly.
-- "Deployed" status tracking is best-effort/manual in v1 — no confirmation
-  loop from `infra`'s workflow run back into this app; the admin dashboard
-  shows `pending`/`dispatched` (dispatch call succeeded) with a retry
-  button, not a true "xray actually restarted with this client" signal.
+- Deployment confirmation: `workflow_dispatch` itself returns no run id, so
+  after dispatching, the admin dashboard best-effort-matches the new run by
+  looking at the workflow's recent `workflow_dispatch` runs created at/after
+  the client row's `created_at` (`github_run_id`, stored once found). Once
+  known, the run's actual `status`/`conclusion` (columns
+  `github_run_status`/`github_run_conclusion`) is re-fetched and shown
+  every time `/admin/` loads — no background poller or webhook, since this
+  is a low-traffic, single-operator tool and a lazy refresh-on-page-load is
+  simplest. `conclusion == "success"` is the real "xray restarted with this
+  client" signal now; the run columns reset to unset on retry so a stale
+  prior run's outcome doesn't linger, and a failed run's conclusion also
+  surfaces the retry button (previously only `status != "dispatched"` did).
 
 ## Access control
 
@@ -267,7 +275,8 @@ cookie-session based, both enforced via nginx `auth_request`:
   the backend itself is unreachable.
 - Backend (`sources/`, package `vless_admin`) scaffolded 1:1 on
   `hotline-listing`'s pattern: FastAPI + SQLAlchemy async/Postgres (`Client`
-  table: `email`, `client_uuid`, `status`, `created_at` — the shared
+  table: `email`, `client_uuid`, `status`, `github_run_id`,
+  `github_run_status`, `github_run_conclusion`, `created_at` — the shared
   Reality params live in `AppConfig`, not per-row; `Session` table:
   `session_id`, `kind`, `subject`, `expires_at`, `created_at`) + Redis
   cache + Alembic migrations. Routes: `GET /api/client`,

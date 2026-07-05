@@ -73,10 +73,39 @@ async def client_get_by_email(email: str) -> Client | None:
 
 
 async def client_mark_dispatched(client_id: UUID) -> None:
-    """Flip a client's status to 'dispatched' after a successful GitHub dispatch call."""
+    """Flip a client's status to 'dispatched' and clear any prior run tracking."""
     async with get_session() as session:
         await session.execute(
-            update(Client).where(Client.id == client_id).values(status="dispatched")
+            update(Client)
+            .where(Client.id == client_id)
+            .values(
+                status="dispatched",
+                github_run_id=None,
+                github_run_status=None,
+                github_run_conclusion=None,
+            )
+        )
+        await session.commit()
+
+
+async def client_set_run_id(client_id: UUID, run_id: int) -> None:
+    """Record the GitHub Actions run id found for a dispatched client."""
+    async with get_session() as session:
+        await session.execute(
+            update(Client).where(Client.id == client_id).values(github_run_id=run_id)
+        )
+        await session.commit()
+
+
+async def client_update_run_status(
+    client_id: UUID, status: str, conclusion: str | None
+) -> None:
+    """Update a client's tracked GitHub Actions run status/conclusion."""
+    async with get_session() as session:
+        await session.execute(
+            update(Client)
+            .where(Client.id == client_id)
+            .values(github_run_status=status, github_run_conclusion=conclusion)
         )
         await session.commit()
 

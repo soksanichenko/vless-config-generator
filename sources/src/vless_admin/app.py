@@ -3,6 +3,7 @@
 import logging
 import os
 from contextlib import asynccontextmanager
+from datetime import timedelta
 from pathlib import Path
 from uuid import UUID
 
@@ -19,9 +20,17 @@ from .auth import (
 )
 from .cache import Cache
 from .config import AppConfig
-from .db import client_create, client_get, client_list, client_mark_dispatched, init_db
+from .db import (
+    client_create,
+    client_get,
+    client_list,
+    client_mark_dispatched,
+    client_set_run_id,
+    client_update_run_status,
+    init_db,
+)
 from .github_categories import get_ruleset_categories
-from .github_dispatch import dispatch_new_client
+from .github_dispatch import dispatch_new_client, find_run_id, get_run_status
 from .sessions import (
     ADMIN_COOKIE_NAME,
     SITE_COOKIE_NAME,
@@ -70,6 +79,48 @@ async def _dispatch_and_mark(client) -> None:
         logger.exception(
             "Failed to dispatch infra workflow for client %s", client.email
         )
+
+
+async def _refresh_client_runs(clients: list) -> None:
+    """Best-effort refresh of each dispatched client's GitHub Actions run state.
+
+    Called on every admin dashboard load rather than via a background
+    poller or webhook — simplest option for a low-traffic, single-operator
+    tool. `workflow_dispatch` returns no run id, so a client without one yet
+    gets a lookup attempt on each load until a matching run shows up.
+    """
+    for client in clients:
+        if client.status != "dispatched":
+            continue
+        try:
+            if client.github_run_id is None:
+                run_id = await find_run_id(
+                    _http,
+                    github_token=config.github_token,
+                    repo=config.github_repo,
+                    workflow_file=config.github_workflow_file,
+                    after=client.created_at - timedelta(seconds=10),
+                )
+                if run_id is None:
+                    continue
+                await client_set_run_id(client.id, run_id)
+                client.github_run_id = run_id
+            if client.github_run_status != "completed":
+                status, conclusion = await get_run_status(
+                    _http,
+                    github_token=config.github_token,
+                    repo=config.github_repo,
+                    run_id=client.github_run_id,
+                )
+                if (status, conclusion) != (
+                    client.github_run_status,
+                    client.github_run_conclusion,
+                ):
+                    await client_update_run_status(client.id, status, conclusion)
+                    client.github_run_status = status
+                    client.github_run_conclusion = conclusion
+        except Exception:
+            logger.exception("Failed to refresh GitHub run state for %s", client.email)
 
 
 # ── Routes: site login ──────────────────────────────────────────────────────────
@@ -196,8 +247,10 @@ async def admin_logout(request: Request) -> Response:
 @app.get("/admin/", response_class=HTMLResponse)
 async def admin_dashboard(request: Request) -> HTMLResponse:
     clients = await client_list()
+    await _refresh_client_runs(clients)
     return templates.TemplateResponse(
-        "admin/dashboard.html", {"request": request, "clients": clients}
+        "admin/dashboard.html",
+        {"request": request, "clients": clients, "github_repo": config.github_repo},
     )
 
 

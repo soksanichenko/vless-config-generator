@@ -40,7 +40,7 @@ vless-config-generator/
 │   │       ├── auth.py              # login verification for site + admin
 │   │       ├── sessions.py          # signed session cookies, Postgres-backed
 │   │       ├── github_categories.py # geosite/geoip category fetch, Redis-cached
-│   │       ├── github_dispatch.py   # triggers infra's add-vless-client.yml workflow
+│   │       ├── github_dispatch.py   # dispatches + tracks infra's add-vless-client.yml run
 │   │       └── alembic/             # migrations
 │   └── templates/                   # login.html, admin/login.html, admin/dashboard.html
 ├── install_dependencies.sh

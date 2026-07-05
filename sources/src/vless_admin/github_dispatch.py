@@ -1,4 +1,4 @@
-"""Trigger the `infra` repo's GitHub Actions workflow that applies a new VLESS client.
+"""Trigger and track the `infra` repo's "Add VLESS client" GitHub Actions workflow.
 
 This backend never writes to Infisical or touches the xray server directly —
 it only dispatches a workflow in `infra`, which holds the write-capable
@@ -6,10 +6,18 @@ Infisical credential and runs the actual `ansible-playbook` deploy.
 """
 
 import logging
+from datetime import datetime
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+
+def _headers(github_token: str) -> dict[str, str]:
+    return {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {github_token}",
+    }
 
 
 async def dispatch_new_client(
@@ -24,10 +32,48 @@ async def dispatch_new_client(
     """Call the workflow_dispatch API with the new client's email/uuid as inputs."""
     response = await http.post(
         f"https://api.github.com/repos/{repo}/actions/workflows/{workflow_file}/dispatches",
-        headers={
-            "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {github_token}",
-        },
+        headers=_headers(github_token),
         json={"ref": "main", "inputs": {"email": email, "uuid": client_uuid}},
     )
     response.raise_for_status()
+
+
+async def find_run_id(
+    http: httpx.AsyncClient,
+    *,
+    github_token: str,
+    repo: str,
+    workflow_file: str,
+    after: datetime,
+) -> int | None:
+    """Best-effort lookup of the run a dispatch created.
+
+    `workflow_dispatch` itself returns no run id, so this looks at the
+    workflow's most recent `workflow_dispatch` runs for one created at/after
+    `after`. May return None if the run hasn't shown up in the API yet —
+    callers are expected to retry on a later poll rather than block on this.
+    """
+    response = await http.get(
+        f"https://api.github.com/repos/{repo}/actions/workflows/{workflow_file}/runs",
+        headers=_headers(github_token),
+        params={"event": "workflow_dispatch", "per_page": 5},
+    )
+    response.raise_for_status()
+    for run in response.json().get("workflow_runs", []):
+        created_at = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
+        if created_at >= after:
+            return run["id"]
+    return None
+
+
+async def get_run_status(
+    http: httpx.AsyncClient, *, github_token: str, repo: str, run_id: int
+) -> tuple[str, str | None]:
+    """Return (status, conclusion) for a run — conclusion is None until completed."""
+    response = await http.get(
+        f"https://api.github.com/repos/{repo}/actions/runs/{run_id}",
+        headers=_headers(github_token),
+    )
+    response.raise_for_status()
+    data = response.json()
+    return data["status"], data.get("conclusion")

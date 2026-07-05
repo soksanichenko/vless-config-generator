@@ -11,6 +11,9 @@
     th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #ddd; font-size: 0.9rem; }
     .status-pending { color: #a06a00; }
     .status-dispatched { color: #157347; }
+    .run-queued, .run-in_progress { color: #0a5aa6; }
+    .run-success { color: #157347; }
+    .run-failure, .run-cancelled, .run-timed_out { color: #b3261e; }
     form.add-client { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
     input[type="email"] { flex: 1; padding: 0.4rem; }
     button { padding: 0.4rem 0.9rem; cursor: pointer; }
@@ -26,7 +29,7 @@
 
 <table>
   <thead>
-    <tr><th>Email</th><th>UUID</th><th>Status</th><th>Created</th><th></th></tr>
+    <tr><th>Email</th><th>UUID</th><th>Status</th><th>Workflow run</th><th>Created</th><th></th></tr>
   </thead>
   <tbody>
     {% for client in clients %}
@@ -34,9 +37,19 @@
       <td>{{ client.email }}</td>
       <td><code>{{ client.client_uuid }}</code></td>
       <td class="status-{{ client.status }}">{{ client.status }}</td>
-      <td>{{ client.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
       <td>
         {% if client.status != "dispatched" %}
+          &mdash;
+        {% elif client.github_run_id is none %}
+          <span>looking up run&hellip;</span>
+        {% else %}
+          {% set run_state = client.github_run_conclusion if client.github_run_status == "completed" else client.github_run_status %}
+          <a class="run-{{ run_state }}" href="https://github.com/{{ github_repo }}/actions/runs/{{ client.github_run_id }}" target="_blank" rel="noopener">{{ run_state }}</a>
+        {% endif %}
+      </td>
+      <td>{{ client.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>
+        {% if client.status != "dispatched" or client.github_run_conclusion == "failure" %}
         <form method="post" action="/admin/clients/{{ client.id }}/retry">
           <button type="submit">Retry</button>
         </form>
@@ -45,7 +58,7 @@
     </tr>
     {% endfor %}
     {% if not clients %}
-    <tr><td colspan="5">No clients yet.</td></tr>
+    <tr><td colspan="6">No clients yet.</td></tr>
     {% endif %}
   </tbody>
 </table>
@@ -58,8 +71,9 @@
 <p style="color:#666;font-size:0.85rem;margin-top:1rem">
   Adding a client dispatches the <code>infra</code> repo's GitHub Actions
   workflow, which writes the new client's UUID to Infisical and redeploys
-  xray. "dispatched" means the trigger call succeeded — it does not confirm
-  the xray server actually restarted with the new client.
+  xray. "dispatched" means the trigger call succeeded; the "Workflow run"
+  column reflects the actual run's status/outcome, refreshed each time this
+  page loads — "success" means xray actually restarted with the new client.
 </p>
 
 </body>
