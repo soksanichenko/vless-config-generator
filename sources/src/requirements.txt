@@ -10,3 +10,4 @@ sqlalchemy==2.0.41
 sqlalchemy-utils==0.41.2
 alembic==1.16.2
 psycopg[binary]==3.3.4
+itsdangerous==2.2.0

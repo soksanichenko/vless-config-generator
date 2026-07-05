@@ -11,19 +11,24 @@ from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
-from .auth import verify_basic_auth
+from .auth import (
+    get_admin_from_session,
+    get_client_from_session,
+    verify_admin_login,
+    verify_client_login,
+)
 from .cache import Cache
 from .config import AppConfig
-from .db import (
-    client_create,
-    client_get,
-    client_list,
-    client_mark_dispatched,
-    create_db_if_not_exists,
-    init_db,
-)
+from .db import client_create, client_get, client_list, client_mark_dispatched, init_db
 from .github_categories import get_ruleset_categories
 from .github_dispatch import dispatch_new_client
+from .sessions import (
+    ADMIN_COOKIE_NAME,
+    SITE_COOKIE_NAME,
+    create_session,
+    destroy_session,
+    init_sessions,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +43,8 @@ _http: httpx.AsyncClient | None = None
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     global _cache, _http
-    create_db_if_not_exists(config.sync_database_url)
     init_db(config.async_database_url)
+    init_sessions(config.session_secret_key)
     _cache = Cache(config.redis_url, config.cache_ttl)
     _http = httpx.AsyncClient(timeout=15.0)
     yield
@@ -67,28 +72,59 @@ async def _dispatch_and_mark(client) -> None:
         )
 
 
+# ── Routes: site login ──────────────────────────────────────────────────────────
+
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_form(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        "login.html", {"request": request, "error": False}
+    )
+
+
+@app.post("/login")
+async def login_submit(
+    request: Request, email: str = Form(...), uuid: str = Form(...)
+) -> Response:
+    client = await verify_client_login(email, uuid)
+    if client is None:
+        return templates.TemplateResponse(
+            "login.html", {"request": request, "error": True}, status_code=401
+        )
+    response = RedirectResponse("/", status_code=303)
+    await create_session(
+        response, kind="site", subject=client.email, cookie_secure=config.cookie_secure
+    )
+    return response
+
+
+@app.post("/logout")
+async def logout(request: Request) -> Response:
+    response = RedirectResponse("/login", status_code=303)
+    await destroy_session(response, request.cookies.get(SITE_COOKIE_NAME), kind="site")
+    return response
+
+
 # ── Routes: frontend API ──────────────────────────────────────────────────────
 
 
-@app.get("/api/clients")
-async def api_clients() -> JSONResponse:
-    """Client-dropdown data — replaces the old static clients.json."""
-    clients = await client_list()
+@app.get("/api/client")
+async def api_client(request: Request) -> JSONResponse:
+    """Data for the client that logged in — no picking another client's credentials."""
+    client = await get_client_from_session(request.cookies.get(SITE_COOKIE_NAME))
+    if client is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     return JSONResponse(
         {
-            "clients": [
-                {
-                    "email": client.email,
-                    "uuid": str(client.client_uuid),
-                    "server": config.vless_server,
-                    "serverPort": config.vless_server_port,
-                    "publicKey": config.vless_public_key,
-                    "shortId": config.vless_short_id,
-                    "serverName": config.vless_server_name,
-                }
-                for client in clients
-                if client.status == "dispatched"
-            ]
+            "client": {
+                "email": client.email,
+                "uuid": str(client.client_uuid),
+                "server": config.vless_server,
+                "serverPort": config.vless_server_port,
+                "publicKey": config.vless_public_key,
+                "shortId": config.vless_short_id,
+                "serverName": config.vless_server_name,
+            }
         }
     )
 
@@ -106,17 +142,55 @@ async def api_ruleset_categories(kind: str) -> JSONResponse:
     return JSONResponse({"categories": categories})
 
 
-# ── Routes: nginx auth_request target ─────────────────────────────────────────
+# ── Routes: nginx auth_request targets ────────────────────────────────────────
 
 
 @app.get("/auth")
 async def auth(request: Request) -> Response:
-    """nginx `auth_request` target: 200 for a valid client login, 401 otherwise."""
-    ok = await verify_basic_auth(request.headers.get("authorization"))
-    return Response(status_code=200 if ok else 401)
+    """nginx `auth_request` target for the main site: 200/401 on the site session cookie."""
+    client = await get_client_from_session(request.cookies.get(SITE_COOKIE_NAME))
+    return Response(status_code=200 if client is not None else 401)
+
+
+@app.get("/admin/auth")
+async def admin_auth(request: Request) -> Response:
+    """nginx `auth_request` target for `/admin/`: 200/401 on the admin session cookie."""
+    username = await get_admin_from_session(request.cookies.get(ADMIN_COOKIE_NAME))
+    return Response(status_code=200 if username is not None else 401)
 
 
 # ── Routes: admin ──────────────────────────────────────────────────────────────
+
+
+@app.get("/admin/login", response_class=HTMLResponse)
+async def admin_login_form(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        "admin/login.html", {"request": request, "error": False}
+    )
+
+
+@app.post("/admin/login")
+async def admin_login_submit(
+    request: Request, username: str = Form(...), password: str = Form(...)
+) -> Response:
+    if not verify_admin_login(username, password, config):
+        return templates.TemplateResponse(
+            "admin/login.html", {"request": request, "error": True}, status_code=401
+        )
+    response = RedirectResponse("/admin/", status_code=303)
+    await create_session(
+        response, kind="admin", subject=username, cookie_secure=config.cookie_secure
+    )
+    return response
+
+
+@app.post("/admin/logout")
+async def admin_logout(request: Request) -> Response:
+    response = RedirectResponse("/admin/login", status_code=303)
+    await destroy_session(
+        response, request.cookies.get(ADMIN_COOKIE_NAME), kind="admin"
+    )
+    return response
 
 
 @app.get("/admin/", response_class=HTMLResponse)

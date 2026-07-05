@@ -3,17 +3,44 @@ location = /internal/auth {
     proxy_pass http://{{ vless_config_generator_api_upstream_name }}/auth;
     proxy_pass_request_body off;
     proxy_set_header Content-Length "";
-    proxy_set_header X-Original-URI $request_uri;
+    proxy_set_header Cookie $http_cookie;
 }
 
-location @error401 {
-    add_header WWW-Authenticate "Basic realm=\"{{ vless_config_generator_domain }}\"" always;
-    return 401;
+location = /internal/admin-auth {
+    internal;
+    proxy_pass http://{{ vless_config_generator_api_upstream_name }}/admin/auth;
+    proxy_pass_request_body off;
+    proxy_set_header Content-Length "";
+    proxy_set_header Cookie $http_cookie;
+}
+
+location @site_login {
+    return 302 /login;
+}
+
+location @admin_login {
+    return 302 /admin/login;
+}
+
+location = /login {
+    proxy_pass http://{{ vless_config_generator_api_upstream_name }}/login;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $client_real_ip;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+location = /logout {
+    proxy_pass http://{{ vless_config_generator_api_upstream_name }}/logout;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $client_real_ip;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
 }
 
 location /api/ {
     auth_request /internal/auth;
-    error_page 401 = @error401;
+    error_page 401 = @site_login;
     proxy_pass http://{{ vless_config_generator_api_upstream_name }}/api/;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $client_real_ip;
@@ -21,9 +48,25 @@ location /api/ {
     proxy_set_header X-Forwarded-Proto $scheme;
 }
 
+location /admin/login {
+    proxy_pass http://{{ vless_config_generator_api_upstream_name }}/admin/login;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $client_real_ip;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+location /admin/logout {
+    proxy_pass http://{{ vless_config_generator_api_upstream_name }}/admin/logout;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $client_real_ip;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
 location /admin/ {
-    auth_basic "{{ vless_config_generator_admin_htpasswd_realm }}";
-    auth_basic_user_file {{ nginx_confd_container_path }}/htpasswd/{{ vless_config_generator_admin_htpasswd_file }};
+    auth_request /internal/admin-auth;
+    error_page 401 = @admin_login;
     proxy_pass http://{{ vless_config_generator_api_upstream_name }}/admin/;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $client_real_ip;
@@ -33,7 +76,7 @@ location /admin/ {
 
 location / {
     auth_request /internal/auth;
-    error_page 401 = @error401;
+    error_page 401 = @site_login;
     alias      /usr/share/nginx/html/static/vless-config-generator/;
     index      index.html;
     try_files  $uri $uri/ =404;

@@ -39,3 +39,27 @@ class Client(Base):
         nullable=False,
         server_default=func.now(),
     )
+
+
+class Session(Base):
+    """A server-side login session, backing both the site and admin logins.
+
+    `session_id` is the opaque value carried inside the signed session
+    cookie; `kind` ("site" or "admin") keeps the two login domains from
+    ever being confused with each other, and `subject` is the client email
+    (site) or admin username (admin) the session belongs to.
+    """
+
+    __tablename__ = "sessions"
+
+    session_id: MappedColumn[str] = mapped_column(String, primary_key=True)
+    kind: MappedColumn[str] = mapped_column(String, nullable=False)
+    subject: MappedColumn[str] = mapped_column(String, nullable=False)
+    expires_at: MappedColumn[DateTime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    created_at: MappedColumn[DateTime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )

@@ -26,6 +26,12 @@ class AppConfig(BaseModel):
     github_repo: str = "owner/infra"
     github_workflow_file: str = "add-vless-client.yml"
 
+    # Session cookies (site login + admin login) — see sessions.py.
+    session_secret_key: str = ""
+    admin_username: str = ""
+    admin_password: str = ""
+    cookie_secure: bool = True
+
     @property
     def sync_database_url(self) -> str:
         """SQLAlchemy sync URL for psycopg3 (postgresql+psycopg://...)."""

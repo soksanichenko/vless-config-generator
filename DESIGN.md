@@ -46,24 +46,26 @@ inbounds, DNS) passes through untouched.
   toggle** — direct or proxy, not a hardcoded default. This was an explicit
   design decision (not "safer default wins").
 
-## Client credentials — dropdown, not manual entry
+## Client credentials — derived from login, not picked from a list
 
 Deployed on the same VDS (zelgray.work) that already runs XRay (VLESS+Reality),
 so the server-side client list is a known quantity — no reason to make the user
-type UUID/public key/short ID/SNI by hand. Instead: a dropdown of existing
-clients.
+type UUID/public key/short ID/SNI by hand.
 
 **Superseded design note:** this originally meant a `clients.json` rendered
 at **deploy time** by this repo's own Ansible role, direct from infra's
 Infisical secrets, blocked on `infra`'s `xray.vless.clients` secret
 structure (then a single flat secret). That blocker turned out to be moot —
 `xray.vless.clients` was **already a YAML list** in infra, just hand-edited
-per client. The dropdown is now served live by this repo's own backend
-(`/api/clients`, backed by its own Postgres `clients` table — see "Admin
-panel" below) instead of a deploy-time static file; `infra`'s Infisical
-secrets are still the source of truth for the *shared* Reality parameters
-(`vless-public-key`, `vless-sid`), templated into the backend's
-`config.yaml` the same way `clients.json.j2` used to read them.
+per client. This was then replaced with a live `GET /api/clients` endpoint
+returning *every* dispatched client — which turned out to be its own bug:
+any logged-in client could see every other client's UUID/public key/short ID
+via that list. Replaced again with `GET /api/client` (singular): the backend
+reads the caller's own session cookie and returns only *that* client's data
+— no picker, no cross-client leak. `infra`'s Infisical secrets remain the
+source of truth for the *shared* Reality parameters (`vless-public-key`,
+`vless-sid`), templated into the backend's `config.yaml` the same way
+`clients.json.j2` used to read them.
 
 ## Admin panel + client-credential site auth
 
@@ -104,15 +106,34 @@ implemented from for the full ground-truth investigation):
   `infra`) is a **hard container restart** (`docker_container: restart:
   yes`), no SIGHUP/hot-reload. Adding a client always briefly drops
   existing connections; nothing here changes that.
-- Site login is **Basic Auth via nginx `auth_request`** — no new login page.
-  nginx forwards the browser's `Authorization` header to the backend's
-  `/auth` instead of checking a static htpasswd file. Credential = the
-  client's own `email:uuid` (reuses the existing secret, no new credential
-  type invented).
-- The admin page itself (`/admin/`, server-rendered FastAPI/Jinja2, not a
-  React route — matches `hotline-listing`'s own precedent) is gated by a
-  **separate, static** htpasswd, independent of the live client-cred auth —
-  so a bug/outage in `/auth` can't lock the admin out of fixing it.
+- Site login is a real login/logout flow, not Basic Auth: `GET/POST /login`
+  (server-rendered form, email + VLESS UUID) sets a signed session cookie;
+  nginx `auth_request` against the backend's `/auth` checks that cookie,
+  redirecting to `/login` on failure (`POST /logout` clears it). Superseded
+  the original Basic-Auth-via-`auth_request` design — Basic Auth's
+  browser-native prompt has no logout and caches per-origin until the
+  browser's site data is cleared, which made testing as different clients
+  painful. Credential = the client's own `email:uuid` (reuses the existing
+  secret, no new credential type invented).
+- The admin page (`/admin/`, server-rendered FastAPI/Jinja2, not a React
+  route — matches `hotline-listing`'s own precedent) has its own,
+  independent `GET/POST /admin/login` + `POST /admin/logout` and its own
+  session cookie/nginx `auth_request` target (`/admin/auth`) — so a bug in
+  the site's login can't lock the admin out. Superseded the original
+  design of a static nginx `auth_basic`/htpasswd for `/admin/`: a real
+  login form needs the backend to verify the credential and issue a
+  cookie, which nginx's `auth_basic` can't do — so the admin credential
+  moved from an nginx-generated htpasswd file into the backend's own
+  config (Infisical secrets `vless-config-generator-admin-username` /
+  `-admin-password`, split from the original combined `username:password`
+  secret).
+- Sessions: `itsdangerous`-signed cookies (`site_session`/`admin_session`,
+  separate names/paths) carrying only an opaque random id — the signature
+  guards against tampering and enforces a hard max-age at the edge, while a
+  Postgres `sessions` table (`session_id`, `kind`, `subject`, `expires_at`)
+  remains the source of truth for revocation: logout deletes the row
+  immediately, regardless of how long the signed cookie would otherwise
+  still verify. TTLs: 30 days (site), 12 hours (admin).
 - Stack: FastAPI + PostgreSQL + Redis, following the `hotline-listing`
   reference pattern on this VDS exactly (same repo layout, same Ansible
   role shape sourced from `sources/`, same shared Postgres/Redis
@@ -130,13 +151,18 @@ implemented from for the full ground-truth investigation):
 ## Access control
 
 Client credentials (UUID, public key, short ID) are sensitive. Two
-independent gates now, deliberately not chained together:
-- Main site (`/`, `/api/`): nginx `auth_request` against the backend's
-  `/auth` — log in with an existing client's `email:uuid`.
-- Admin panel (`/admin/`): a separate, static htpasswd sourced from an
-  Infisical secret under `/hosts/shared` (`vless-config-generator-admin-
-  htpasswd`) — same historical pattern as `library.zelgray.work`
-  (`inpx-web-ui`), kept independent so it survives an outage in the other.
+independent gates now, deliberately not chained together — both
+cookie-session based, both enforced via nginx `auth_request`:
+- Main site (`/`, `/api/`): log in at `/login` with an existing client's
+  `email:uuid`, gets a `site_session` cookie checked against `/auth`.
+- Admin panel (`/admin/`): log in at `/admin/login` with the operator
+  credential sourced from two Infisical secrets under `/hosts/shared`
+  (`vless-config-generator-admin-username`,
+  `vless-config-generator-admin-password` — split from a single
+  `username:password` secret, same historical pattern as
+  `library.zelgray.work`/`inpx-web-ui` originally used), gets an
+  `admin_session` cookie checked against `/admin/auth` — kept independent
+  so it survives an outage in the site's own login.
 
 ## Deployment shape
 
@@ -145,7 +171,7 @@ independent gates now, deliberately not chained together:
   `pre_tasks/infisical.yml`, own minimal `group_vars/all.yml`, connects to
   infra's shared nginx/Infisical project without infra code depending on it).
 - **Deploys to zelgray.work VDS** — supersedes the original `IDEAS.md` idea of
-  GitHub Pages/Cloudflare Pages hosting. The client-dropdown requirement is
+  GitHub Pages/Cloudflare Pages hosting. The live client-data requirement is
   exactly why: it needs Ansible-rendered, Infisical-sourced data at deploy
   time, which a static host with no build step can't provide.
 - **Superseded: "static site, no application backend"** — true at initial
@@ -164,15 +190,15 @@ independent gates now, deliberately not chained together:
 
 ## End-to-end UI flow (summary)
 
-1. Pick a client from the dropdown (server params + credentials come along
-   with the selection — no manual entry).
+1. Log in at `/login` with your client's `email:uuid` — your own server
+   params + credentials come along automatically, no manual entry.
 2. Paste an existing sing-box `config.json` as the base.
 3. Build/edit routing rules in the rule list (conditions + direct/proxy
    action, drag to reorder).
 4. Set the default outbound (direct/proxy toggle).
 5. Get back the same config with `route` replaced — download or copy.
 6. Everything from step 2 onward runs entirely in the browser; the client
-   list (step 1) and rule-set category autocomplete now depend on this
+   data (step 1) and rule-set category autocomplete now depend on this
    repo's own backend rather than a deploy-time static file (see "Admin
    panel + client-credential site auth").
 
@@ -182,6 +208,11 @@ independent gates now, deliberately not chained together:
   no live end-to-end test has been run yet — no real `workflow_dispatch`
   has been triggered, no real xray restart observed. Until that's
   verified, treat "add client" as implemented-but-unverified in production.
+- The session-cookie login (see "Admin panel" above) needs a new Infisical
+  secret, `vless-config-generator-session-secret` (a random string, e.g.
+  `openssl rand -hex 32`), not yet created — without it `session_secret_key`
+  falls back to an empty string, which still works but isn't fit for
+  production cookie-signing.
 
 ## Implementation status
 
@@ -189,10 +220,11 @@ independent gates now, deliberately not chained together:
   and `new-nginx-service` (subdomain `vless-gen.zelgray.work`, Basic Auth via
   a self-managed htpasswd file, no upstream since there's no backend).
 - Frontend: Vite + React + TypeScript in `frontend/`, no build-step-free
-  vanilla JS after all — see `frontend/src/`. Client dropdown injects the
-  selected client's `server`/`server_port`/`uuid`/`tls.reality.public_key`/
-  `tls.reality.short_id`/`tls.server_name` into the pasted config's chosen
-  VLESS outbound; everything else in the pasted config passes through
+  vanilla JS after all — see `frontend/src/`. The logged-in client's own
+  `server`/`server_port`/`uuid`/`tls.reality.public_key`/
+  `tls.reality.short_id`/`tls.server_name` (from `GET /api/client`) get
+  injected into the pasted config's chosen VLESS outbound; everything else
+  in the pasted config passes through
   untouched. Rule builder supports every condition type from this doc,
   including `rule_set`-based geosite/geoip (verified against the sing-box
   v1.13 docs via Context7 — `route.rule_set[]` entries with
@@ -236,14 +268,18 @@ independent gates now, deliberately not chained together:
 - Backend (`sources/`, package `vless_admin`) scaffolded 1:1 on
   `hotline-listing`'s pattern: FastAPI + SQLAlchemy async/Postgres (`Client`
   table: `email`, `client_uuid`, `status`, `created_at` — the shared
-  Reality params live in `AppConfig`, not per-row) + Redis cache + Alembic
-  migrations. Routes: `GET /api/clients`, `GET /api/ruleset-categories`,
-  `GET /auth` (nginx `auth_request` target), `GET /admin/` +
-  `POST /admin/clients` + `POST /admin/clients/{id}/retry` (server-rendered
-  Jinja2, `sources/templates/admin/dashboard.html`). Deployed via
-  `community.docker.docker_container` on the shared `docker_network`,
-  alongside the existing static-frontend sync, in the same Ansible role
-  (`ansible/roles/vless-config-generator/`). Nginx now routes `/api/` and
-  `/` through `auth_request` against `/auth`, and `/admin/` through its own
-  separate `auth_basic`/htpasswd — see that role's `README.md` for the full
+  Reality params live in `AppConfig`, not per-row; `Session` table:
+  `session_id`, `kind`, `subject`, `expires_at`, `created_at`) + Redis
+  cache + Alembic migrations. Routes: `GET /api/client`,
+  `GET /api/ruleset-categories`, `GET/POST /login`, `POST /logout`,
+  `GET /auth` (nginx `auth_request` target for the site),
+  `GET/POST /admin/login`, `POST /admin/logout`, `GET /admin/auth` (nginx
+  `auth_request` target for `/admin/`), `GET /admin/` + `POST /admin/clients`
+  + `POST /admin/clients/{id}/retry` (server-rendered Jinja2,
+  `sources/templates/`). Deployed via `community.docker.docker_container`
+  on the shared `docker_network`, alongside the existing static-frontend
+  sync, in the same Ansible role (`ansible/roles/vless-config-generator/`).
+  Nginx routes `/`, `/api/`, and `/admin/` all through `auth_request`
+  against their respective backend endpoint, redirecting to `/login` or
+  `/admin/login` on 401 — see that role's `README.md` for the full
   variable/tag reference.

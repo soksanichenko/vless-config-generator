@@ -8,6 +8,6 @@ export interface VlessClient {
   serverName: string
 }
 
-export interface ClientsFile {
-  clients: VlessClient[]
+export interface ClientResponse {
+  client: VlessClient
 }

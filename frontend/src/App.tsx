@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ClientDropdown } from './components/ClientDropdown'
+import { ClientInfo } from './components/ClientInfo'
 import { ConfigPaste } from './components/ConfigPaste'
 import { OutboundMapping } from './components/OutboundMapping'
 import { RuleSetManager } from './components/RuleSetManager'
@@ -11,12 +11,11 @@ import { DEFAULT_CONFIG_TEXT } from './lib/defaultConfig'
 import { listOutbounds } from './types/singbox'
 import type { SingBoxConfig } from './types/singbox'
 import type { Action, Rule, RuleSetDef } from './types/rules'
-import type { ClientsFile, VlessClient } from './types/clients'
+import type { ClientResponse, VlessClient } from './types/clients'
 
 export function App() {
-  const [clients, setClients] = useState<VlessClient[]>([])
-  const [clientsError, setClientsError] = useState<string | null>(null)
-  const [selectedClientEmail, setSelectedClientEmail] = useState<string | null>(null)
+  const [client, setClient] = useState<VlessClient | null>(null)
+  const [clientError, setClientError] = useState<string | null>(null)
 
   const [configText, setConfigText] = useState(DEFAULT_CONFIG_TEXT)
   const [parsedConfig, setParsedConfig] = useState<SingBoxConfig | null>(null)
@@ -31,13 +30,13 @@ export function App() {
   const [defaultAction, setDefaultAction] = useState<Action>('direct')
 
   useEffect(() => {
-    fetch('/api/clients')
+    fetch('/api/client')
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        return response.json() as Promise<ClientsFile>
+        return response.json() as Promise<ClientResponse>
       })
-      .then((data) => setClients(data.clients ?? []))
-      .catch((error: unknown) => setClientsError(error instanceof Error ? error.message : String(error)))
+      .then((data) => setClient(data.client))
+      .catch((error: unknown) => setClientError(error instanceof Error ? error.message : String(error)))
   }, [])
 
   useEffect(() => {
@@ -75,8 +74,6 @@ export function App() {
     // Re-detect only when a new config is pasted, not on every outbound-mapping edit.
   }, [parsedConfig])
 
-  const selectedClient = clients.find((client) => client.email === selectedClientEmail) ?? null
-
   const warnings = useMemo(() => {
     const messages: string[] = []
     if (parsedConfig && !directTag) messages.push('No direct outbound selected — rules using "Direct" will reference an empty tag.')
@@ -97,21 +94,16 @@ export function App() {
       directTag,
       proxyTag,
       proxyOutboundIndex,
-      selectedClient,
+      selectedClient: client,
     })
-  }, [parsedConfig, rules, ruleSets, defaultAction, directTag, proxyTag, proxyOutboundIndex, selectedClient])
+  }, [parsedConfig, rules, ruleSets, defaultAction, directTag, proxyTag, proxyOutboundIndex, client])
 
   return (
     <div className="app">
       <h1>VLESS Config Generator</h1>
       <p className="subtitle">Build sing-box routing rules for your VLESS/Reality client config.</p>
 
-      <ClientDropdown
-        clients={clients}
-        loadError={clientsError}
-        selectedEmail={selectedClientEmail}
-        onSelect={setSelectedClientEmail}
-      />
+      <ClientInfo client={client} loadError={clientError} />
 
       <ConfigPaste value={configText} onChange={setConfigText} error={parseError} />
 

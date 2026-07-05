@@ -12,17 +12,19 @@ rule-set categories, site login, and the admin panel described below.
 
 - **Default config template** — loaded up front so there's always something
   to edit and export, even before pasting your own config
-- **Client picker** — pulls VLESS credentials (UUID, Reality public key,
-  short ID, SNI) from the backend's `/api/clients`, no manual entry
+- **Client credentials** — pulls VLESS credentials (UUID, Reality public
+  key, short ID, SNI) from the backend's `/api/client` for whichever client
+  you logged in as — no picker, no other client's credentials ever exposed
 - **Admin panel** (`/admin/`) — add new VLESS clients from a browser
   instead of hand-editing `infra`'s config. Adding a client dispatches a
   GitHub Actions workflow in `infra` that writes the new client's UUID to
   Infisical and redeploys xray; this app never holds Infisical write
-  credentials itself. Gated by its own separate Basic Auth credential,
-  independent of the site login below
+  credentials itself. Gated by its own login (`/admin/login`), independent
+  of the site login below — a bug in one can't lock you out of the other
 - **Site login via client credentials** — `vless-gen.zelgray.work` is
-  gated by nginx `auth_request` against the backend instead of a static
-  htpasswd: log in with an existing client's email + VLESS UUID
+  gated by nginx `auth_request` against the backend: log in at `/login`
+  with an existing client's email + VLESS UUID, gets you a signed session
+  cookie (`/logout` to end it)
 - **Outbound mapping** — auto-detects which outbound in your pasted config is
   "direct" and which is the VLESS "proxy", overridable
 - **Routing rule builder** — drag-reorderable rule list (first match wins),
@@ -62,8 +64,8 @@ The admin panel's "add client" action dispatches a `workflow_dispatch`
 GitHub Actions workflow in the separate `infra` repo, which holds the
 Infisical write credential and actually applies the new client to xray —
 see `DESIGN.md`. If that workflow is ever missing/misconfigured, the
-dispatch call just fails loudly; everything else (config editing, the
-existing client dropdown, login) works regardless.
+dispatch call just fails loudly; everything else (config editing, existing
+client login) works regardless.
 
 ## Frontend development
 
@@ -73,8 +75,8 @@ npm install
 npm run dev
 ```
 
-Without the backend running locally, `/api/clients` and
-`/api/ruleset-categories` 404 — the client dropdown shows a load-error
+Without the backend running locally, `/api/client` and
+`/api/ruleset-categories` 404 — the client info card shows a load-error
 banner and the rule-set category input falls back to its bundled snapshot
 list; the rest of the UI still works.
 
@@ -84,6 +86,7 @@ list; the rest of the UI still works.
 ./install_dependencies.sh  # installs sources/src/requirements.txt too
 cp sources/config.yaml.example sources/config.yaml  # point at a local Postgres/Redis
 cd sources
+PYTHONPATH=src CONFIG_PATH=config.yaml python scripts/create_db.py
 PYTHONPATH=src CONFIG_PATH=config.yaml alembic -c alembic.ini upgrade head
 PYTHONPATH=src CONFIG_PATH=config.yaml uvicorn vless_admin.app:app --reload --port 8999
 ```

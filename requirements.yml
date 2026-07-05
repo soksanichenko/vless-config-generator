@@ -4,5 +4,4 @@ collections:
     type: git
     version: feat/read-secrets-include-imports
   - name: community.docker
-  - name: community.general
 ...

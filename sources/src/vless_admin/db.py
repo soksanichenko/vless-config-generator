@@ -1,13 +1,14 @@
 """PostgreSQL access layer: DB creation + SQLAlchemy async CRUD."""
 
 import logging
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy_utils import create_database, database_exists
 
-from .models_db import Client
+from .models_db import Client, Session
 
 logger = logging.getLogger(__name__)
 
@@ -77,4 +78,37 @@ async def client_mark_dispatched(client_id: UUID) -> None:
         await session.execute(
             update(Client).where(Client.id == client_id).values(status="dispatched")
         )
+        await session.commit()
+
+
+async def session_create(
+    session_id: str, kind: str, subject: str, expires_at: datetime
+) -> None:
+    """Store a new login session (site or admin)."""
+    async with get_session() as session:
+        await session.execute(
+            insert(Session).values(
+                session_id=session_id, kind=kind, subject=subject, expires_at=expires_at
+            )
+        )
+        await session.commit()
+
+
+async def session_get(session_id: str, kind: str) -> Session | None:
+    """Return the session row for an id+kind if it exists and hasn't expired."""
+    async with get_session() as session:
+        result = await session.execute(
+            select(Session).where(
+                Session.session_id == session_id,
+                Session.kind == kind,
+                Session.expires_at > datetime.now(UTC),
+            )
+        )
+        return result.scalar_one_or_none()
+
+
+async def session_delete(session_id: str) -> None:
+    """Delete a session row (logout)."""
+    async with get_session() as session:
+        await session.execute(delete(Session).where(Session.session_id == session_id))
         await session.commit()

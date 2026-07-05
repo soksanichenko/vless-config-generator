@@ -4,11 +4,6 @@ vless_config_generator_local_source_dir: "{{ playbook_dir }}/../.."
 
 vless_config_generator_domain: "vless-gen.zelgray.work"
 
-# Separate, static admin-only credential — deliberately independent of the
-# API's live client-cred auth, so a bug/outage there can't lock the admin out.
-vless_config_generator_admin_htpasswd_realm: "vless-config-generator-admin"
-vless_config_generator_admin_htpasswd_file: "vless-config-generator-admin-access.htpasswd"
-
 # API backend (client dropdown data, rule-set category cache, live auth, admin panel)
 vless_config_generator_api_container_name: "vless-config-generator-api"
 vless_config_generator_api_image: "vless-config-generator-api:local"
@@ -33,10 +28,8 @@ vless_config_generator_github_workflow_file: "add-vless-client.yml"
 
 # Nginx — defaults match infra's nginx role
 nginx_docker_container_name: 'nginx-server'
-nginx_confd_container_path: '/etc/nginx/conf.d'
 nginx_volumes_path: "{{ docker_volumes_directory }}/nginx"
 nginx_confd_path: "{{ nginx_volumes_path }}/conf.d"
 nginx_html_path: "{{ nginx_volumes_path }}/html"
 nginx_domain_custom_locations_path: "{{ nginx_confd_path }}/{{ vless_config_generator_domain }}-custom-locations"
-nginx_htpasswd_path: "{{ nginx_confd_path }}/htpasswd"
 ...

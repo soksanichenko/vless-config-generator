@@ -6,6 +6,7 @@ COPY src/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY src/ src/
+COPY scripts/ scripts/
 COPY templates/ templates/
 COPY alembic.ini entrypoint.sh ./
 
