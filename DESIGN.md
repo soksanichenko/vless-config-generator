@@ -254,21 +254,94 @@ implemented from for the full ground-truth investigation):
 - The backend lives in **this repo**, not `infra`, and deliberately **does
   not hold Infisical write credentials**. Adding a client
   (`POST /admin/clients`) generates a UUID, stores it in this repo's own
-  Postgres `clients` table (status `pending`/`dispatched`), then calls
+  Postgres `clients` table (status `pending`/`dispatched`, later also
+  `pending_removal`/`removing` once a client is deleted — see below), then
+  calls
   GitHub's `workflow_dispatch` API against a workflow in `infra`
   (`add-vless-client.yml`) — that workflow is the only thing that writes to
   Infisical and runs the actual xray `ansible-playbook` deploy. This keeps
   the always-on container's blast radius small (a narrow "dispatch this one
   workflow" GitHub token) instead of embedding a live secret-writing
   credential in a permanently-running service.
+- **Deleting a client** (`POST /admin/clients/{id}/delete`) mirrors the add
+  flow symmetrically rather than introducing a new mechanism: status flips
+  to `pending_removal` immediately (before the dispatch call is even
+  attempted — same idea as `client_create`'s initial `pending`, so a failed
+  dispatch still leaves a distinguishable, retryable state), then to
+  `removing` once `workflow_dispatch` against `infra`'s
+  `remove-vless-client.yml` actually succeeds. Either status already blocks
+  that client's site login the instant it's set (`auth.py` rejects anything
+  `!= "dispatched"`), so access is revoked before the removal workflow has
+  even started running on GitHub's side — deletion doesn't wait on xray to
+  actually restart. The `clients` row itself is only hard-deleted once the
+  admin dashboard's next load confirms the workflow's run `conclusion ==
+  "success"` (`_refresh_client_runs` in `app.py`, extended from its original
+  add-only polling to also poll `removing` clients against the remove
+  workflow); a failed removal run surfaces the same "Retry" button as a
+  failed add, re-dispatching the remove workflow specifically (never the
+  add one) since the retry route branches on the client's current status.
+- **Per-client `flow`** — the add-client form has a dropdown
+  (`xtls-rprx-vision` / `xtls-rprx-vision-udp443` / empty), stored on the
+  `clients` row (`flow` column, migration `6b1f4e9a2d7c`) and passed through
+  to `infra`'s `add-vless-client.yml` as a third input. "Empty" exists for
+  clients running sing-box's multiplex feature (see "Multiplexing (mux)"
+  above) — Vision and mux can't be combined, so a client using mux needs its
+  server-side xray entry to have no `flow` key at all, not just an empty
+  string (xray treats an empty `"flow": ""` differently from the key being
+  absent). `infra`'s `config.json.j2` reflects this per-client instead of
+  the old hardcoded `"flow": "xtls-rprx-vision"` for every entry: if
+  `client.flow` is present and non-empty it's used as-is, empty omits the
+  key, and — for backward compatibility with existing `vless-clients`
+  entries that predate this field and have no `flow` key at all — a
+  genuinely *missing* key still defaults to `xtls-rprx-vision`, matching
+  the old hardcoded behavior exactly. Existing entries can still be
+  backfilled with an explicit `flow` in Infisical; the fallback just means
+  that isn't mandatory for the rollout to be safe.
+- **Editing a client** (`POST /admin/clients/{id}/edit`, email + flow only —
+  the UUID itself is never editable through this route, that would be
+  credential rotation, a separate concern not implemented here) reuses the
+  same pending/in-flight pattern as add and delete, but deliberately does
+  **not** revoke site login: status flips to `pending_update` (before the
+  dispatch attempt, mirroring `pending_removal`) then `updating` (once
+  `infra`'s `update-vless-client.yml` dispatch succeeds), and
+  `auth.py`'s `_LOGIN_ALLOWED_STATUSES` explicitly includes both alongside
+  `dispatched` — editing metadata isn't a security event, unlike deletion.
+  A completed `updating` run flips status back to `dispatched`
+  (`client_mark_updated`) but — unlike the add/remove transitions, which
+  reset the run-tracking columns — deliberately leaves them alone, so the
+  edit's own outcome (e.g. "success") stays visible instead of being wiped.
+  A client whose original add was never actually dispatched (`status ==
+  "pending"`) has no server-side entry yet to update at all, so editing it
+  just persists the new email/flow to the row directly (`client_update`,
+  no dispatch) — the next "Retry" of the add naturally picks up the new
+  values, since `_dispatch_add_and_mark` always reads `client.email`/
+  `client.flow` off the current row. Retry's branch logic was extended to a
+  third case (`updating`/`pending_update` → re-dispatch the update
+  workflow) so retrying a failed edit can never re-add or re-remove a
+  client by mistake. A duplicate-email edit is rejected with 409 before
+  any DB write or dispatch (`client_get_by_email` pre-check) — the `clients`
+  table's `email` column is unique, and letting that surface as a raw
+  constraint violation would be a worse admin experience than a clear error.
 - **Prerequisite in `infra`, now implemented there** (separate repo, own
   history): `xray.vless.clients` was restructured to read from one
   JSON-array Infisical secret (`clients: "{{ infisical_secrets.secrets
   ['vless-clients'] | from_json }}"`), and `.github/workflows/
-  add-vless-client.yml` (`workflow_dispatch`, inputs `email`/`uuid`) logs
-  into Infisical, appends to that secret via `playbooks/
-  add_vless_client.yml`, then runs `playbooks/xray.yml`. Runs on a
-  **GitHub-hosted runner** (`runs-on: ubuntu-latest`) — a self-hosted
+  add-vless-client.yml` (`workflow_dispatch`, inputs `email`/`uuid`/`flow`)
+  logs into Infisical, appends to that secret via `playbooks/
+  add_vless_client.yml`, then runs `playbooks/xray.yml`. A parallel
+  `remove-vless-client.yml` (input: `uuid`) + `playbooks/
+  remove_vless_client.yml` does the mirror-image edit (`rejectattr('id',
+  'equalto', vless_client_uuid)` on the same JSON list), and
+  `update-vless-client.yml` (inputs `uuid`/`email`/`flow`) + `playbooks/
+  update_vless_client.yml` rebuilds the list with that one entry's
+  `email`/`flow` replaced (same `rejectattr` removal, then re-appends a
+  freshly built entry — so a stale `flow` from before the edit can't leak
+  through the way a plain `combine` over the old entry would) — all three
+  redeploy via the same `xray.yml` afterward. No new Infisical secret or
+  GitHub token scope needed for either the remove or the update workflow,
+  since both reuse the same `vless-clients` secret and the same
+  `actions:write`-scoped PAT this repo's backend already holds. All three
+  workflows run on a **GitHub-hosted runner** (`runs-on: ubuntu-latest`) — a self-hosted
   runner on the VDS was considered but rejected in favor of less manual
   maintenance; the workflow instead loads an SSH key from the
   `SSH_PRIVATE_KEY` repo secret (`webfactory/ssh-agent`) to reach the VDS,
@@ -336,6 +409,13 @@ implemented from for the full ground-truth investigation):
   client" signal now; the run columns reset to unset on retry so a stale
   prior run's outcome doesn't linger, and a failed run's conclusion also
   surfaces the retry button (previously only `status != "dispatched"` did).
+  The dashboard template also self-refreshes every 5s (`<meta
+  http-equiv="refresh">`) whenever any client is mid-action (`pending`/
+  `dispatched`/`pending_removal`/`removing` without a completed run) — kept
+  simple (a plain meta-refresh, not a JS poller) to match the rest of this
+  page's lazy-refresh-on-load philosophy, and only rendered when something
+  is actually in flight so it doesn't keep reloading (and clearing the
+  add-client form) once everything's settled.
 
 ## Access control
 
@@ -399,7 +479,16 @@ cookie-session based, both enforced via nginx `auth_request`:
 - The `infra`-side prerequisite has landed (see "Admin panel" above), but
   no live end-to-end test has been run yet — no real `workflow_dispatch`
   has been triggered, no real xray restart observed. Until that's
-  verified, treat "add client" as implemented-but-unverified in production.
+  verified, treat "add client" (and, likewise, "delete client"/"edit
+  client" and their `remove-vless-client.yml`/`update-vless-client.yml`
+  counterparts) as implemented-but-unverified in production. Each
+  status-machine and its access-implications — deletion's `pending_removal`
+  → `removing` → hard-delete on confirmed success, and editing's
+  `pending_update` → `updating` → back to `dispatched` without revoking
+  login — was exercised locally against a real Postgres (including the
+  duplicate-email 409 and the "pending" no-dispatch edit path), with the
+  actual GitHub dispatch call itself the only unverified leg in all three —
+  same caveat the add flow always had.
 - The session-cookie login (see "Admin panel" above) needs a new Infisical
   secret, `vless-config-generator-session-secret` (a random string, e.g.
   `openssl rand -hex 32`), not yet created — without it `session_secret_key`
@@ -473,7 +562,8 @@ cookie-session based, both enforced via nginx `auth_request`:
   `GET /auth` (nginx `auth_request` target for the site),
   `GET/POST /admin/login`, `POST /admin/logout`, `GET /admin/auth` (nginx
   `auth_request` target for `/admin/`), `GET /admin/` + `POST /admin/clients`
-  + `POST /admin/clients/{id}/retry` (server-rendered Jinja2,
+  + `POST /admin/clients/{id}/retry` + `POST /admin/clients/{id}/edit`
+  + `POST /admin/clients/{id}/delete` (server-rendered Jinja2,
   `sources/templates/`). Deployed via `community.docker.docker_container`
   on the shared `docker_network`, alongside the existing static-frontend
   sync, in the same Ansible role (`ansible/roles/vless-config-generator/`).

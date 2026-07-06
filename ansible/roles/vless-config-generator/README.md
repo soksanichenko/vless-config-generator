@@ -20,9 +20,10 @@ Browser-based sing-box routing-rule editor for VLESS clients on zelgray.work
      against the resulting session cookie
    - serves `/admin/login` + `/admin/logout` and `/admin/auth` (its own,
      independent nginx `auth_request` target), plus `/admin/`, a small
-     server-rendered page to add new clients — each addition dispatches a
-     `workflow_dispatch` in the `infra` repo, which is the only thing that
-     actually writes to Infisical and redeploys xray (see `DESIGN.md`)
+     server-rendered page to add, edit, or delete clients — each action
+     dispatches a `workflow_dispatch` (add-, update-, or remove-client
+     workflow) in the `infra` repo, which is the only thing that actually
+     writes to Infisical and redeploys xray (see `DESIGN.md`)
 4. Templates the API's `config.yaml` (DB/Redis URLs, shared Reality
    parameters, GitHub dispatch token, session-signing secret, admin
    username/password) from Infisical secrets
@@ -60,7 +61,9 @@ Docker network and shared Postgres/Redis containers `hotline-listing` uses.
 | `vless_config_generator_vless_server_name` | `zelgray.work` | Reality SNI camouflage target written into every client's API response |
 | `vless_config_generator_vless_server_port` | `443` | Port written into every client's API response |
 | `vless_config_generator_github_repo` | `soksanichenko/infra` | Repo the API dispatches `workflow_dispatch` against |
-| `vless_config_generator_github_workflow_file` | `add-vless-client.yml` | Workflow file name in that repo |
+| `vless_config_generator_github_workflow_file` | `add-vless-client.yml` | Workflow file name for adding a client |
+| `vless_config_generator_github_remove_workflow_file` | `remove-vless-client.yml` | Workflow file name for removing a client |
+| `vless_config_generator_github_update_workflow_file` | `update-vless-client.yml` | Workflow file name for editing a client's email/flow |
 | `nginx_docker_container_name` | `nginx-server` | Nginx container name (for the reload handler) |
 | `nginx_volumes_path` | `{{ docker_volumes_directory }}/nginx` | Nginx's volume root on the host |
 | `nginx_confd_path` | `{{ nginx_volumes_path }}/conf.d` | conf.d path on the host |
@@ -89,10 +92,11 @@ ansible-playbook -i inventories/zelgray.work playbooks/deploy.yml
 - The frontend is still built once on the controller and synced straight
   into nginx's html volume, unchanged from before. Only the API is a real,
   always-running service now.
-- Adding a client via `/admin/` does **not** apply anything to the real
-  xray server by itself — it only dispatches a GitHub Actions workflow in
-  the separate `infra` repo, which holds the Infisical write credential and
-  runs the actual `ansible-playbook` deploy for xray. That workflow is a
+- Adding, editing, or deleting a client via `/admin/` does **not** apply
+  anything to the real xray server by itself — it only dispatches a GitHub
+  Actions workflow (add-, update-, or remove-client) in the separate
+  `infra` repo, which holds the Infisical write credential and runs the
+  actual `ansible-playbook` deploy for xray. All three workflows are a
   prerequisite documented in `DESIGN.md`, not part of this role.
 - The `clients.json` static file and its Jinja2 template are gone — the
   frontend now fetches `/api/client` from the live API instead.

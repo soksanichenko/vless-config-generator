@@ -28,12 +28,55 @@ async def dispatch_new_client(
     workflow_file: str,
     email: str,
     client_uuid: str,
+    flow: str,
 ) -> None:
-    """Call the workflow_dispatch API with the new client's email/uuid as inputs."""
+    """Call the workflow_dispatch API with the new client's email/uuid/flow as inputs."""
     response = await http.post(
         f"https://api.github.com/repos/{repo}/actions/workflows/{workflow_file}/dispatches",
         headers=_headers(github_token),
-        json={"ref": "main", "inputs": {"email": email, "uuid": client_uuid}},
+        json={
+            "ref": "main",
+            "inputs": {"email": email, "uuid": client_uuid, "flow": flow},
+        },
+    )
+    response.raise_for_status()
+
+
+async def dispatch_remove_client(
+    http: httpx.AsyncClient,
+    *,
+    github_token: str,
+    repo: str,
+    workflow_file: str,
+    client_uuid: str,
+) -> None:
+    """Call the workflow_dispatch API with the uuid of the client to remove."""
+    response = await http.post(
+        f"https://api.github.com/repos/{repo}/actions/workflows/{workflow_file}/dispatches",
+        headers=_headers(github_token),
+        json={"ref": "main", "inputs": {"uuid": client_uuid}},
+    )
+    response.raise_for_status()
+
+
+async def dispatch_update_client(
+    http: httpx.AsyncClient,
+    *,
+    github_token: str,
+    repo: str,
+    workflow_file: str,
+    client_uuid: str,
+    email: str,
+    flow: str,
+) -> None:
+    """Call the workflow_dispatch API with the client's new email/flow, keyed by uuid."""
+    response = await http.post(
+        f"https://api.github.com/repos/{repo}/actions/workflows/{workflow_file}/dispatches",
+        headers=_headers(github_token),
+        json={
+            "ref": "main",
+            "inputs": {"uuid": client_uuid, "email": email, "flow": flow},
+        },
     )
     response.raise_for_status()
 

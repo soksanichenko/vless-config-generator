@@ -11,6 +11,8 @@ vless_server_name: "zelgray.work"
 github_token: ""
 github_repo: "owner/infra"
 github_workflow_file: "add-vless-client.yml"
+github_remove_workflow_file: "remove-vless-client.yml"
+github_update_workflow_file: "update-vless-client.yml"
 
 session_secret_key: "change-me-for-local-dev"
 admin_username: "admin"

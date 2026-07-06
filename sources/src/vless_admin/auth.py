@@ -15,13 +15,20 @@ from .sessions import resolve_session
 
 logger = logging.getLogger(__name__)
 
+# Statuses that still allow site login: a live client ("dispatched"), plus
+# either phase of an in-flight *edit* ("pending_update"/"updating") — an
+# email/flow edit never revokes access. Any removal-related status
+# ("pending", "pending_removal", "removing") blocks login, "pending"
+# because the client was never actually provisioned on xray yet.
+_LOGIN_ALLOWED_STATUSES = {"dispatched", "pending_update", "updating"}
+
 
 async def verify_client_login(email: str, client_uuid: str) -> Client | None:
-    """Return the Client if `email`/`client_uuid` is a valid, dispatched login."""
+    """Return the Client if `email`/`client_uuid` is a valid, provisioned login."""
     if not email or not client_uuid:
         return None
     client = await client_get_by_email(email)
-    if client is None or client.status != "dispatched":
+    if client is None or client.status not in _LOGIN_ALLOWED_STATUSES:
         return None
     if not hmac.compare_digest(str(client.client_uuid), client_uuid):
         return None
@@ -34,7 +41,7 @@ async def get_client_from_session(cookie_value: str | None) -> Client | None:
     if email is None:
         return None
     client = await client_get_by_email(email)
-    if client is None or client.status != "dispatched":
+    if client is None or client.status not in _LOGIN_ALLOWED_STATUSES:
         return None
     return client
 

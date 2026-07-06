@@ -25,6 +25,8 @@ class AppConfig(BaseModel):
     github_token: str = ""
     github_repo: str = "owner/infra"
     github_workflow_file: str = "add-vless-client.yml"
+    github_remove_workflow_file: str = "remove-vless-client.yml"
+    github_update_workflow_file: str = "update-vless-client.yml"
 
     # Session cookies (site login + admin login) — see sessions.py.
     session_secret_key: str = ""

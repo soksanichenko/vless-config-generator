@@ -39,11 +39,13 @@ def get_session() -> AsyncSession:
     return _session_factory()
 
 
-async def client_create(email: str) -> Client:
+async def client_create(email: str, flow: str) -> Client:
     """Insert a new client with a freshly generated UUID, status=pending."""
     async with get_session() as session:
         result = await session.execute(
-            insert(Client).values(email=email, client_uuid=uuid4()).returning(Client)
+            insert(Client)
+            .values(email=email, client_uuid=uuid4(), flow=flow)
+            .returning(Client)
         )
         await session.commit()
         return result.scalar_one()
@@ -85,6 +87,126 @@ async def client_mark_dispatched(client_id: UUID) -> None:
                 github_run_conclusion=None,
             )
         )
+        await session.commit()
+
+
+async def client_mark_pending_removal(client_id: UUID) -> None:
+    """Flip a client's status to 'pending_removal', ahead of dispatching removal.
+
+    Mirrors `client_create`'s initial "pending" status for the add flow: set
+    before the dispatch call is even attempted, so a client stays visibly
+    distinguishable (and its site login stays blocked, see auth.py) even if
+    the dispatch call itself fails and `client_mark_removing` below is never
+    reached.
+    """
+    async with get_session() as session:
+        await session.execute(
+            update(Client)
+            .where(Client.id == client_id)
+            .values(
+                status="pending_removal",
+                github_run_id=None,
+                github_run_status=None,
+                github_run_conclusion=None,
+            )
+        )
+        await session.commit()
+
+
+async def client_mark_removing(client_id: UUID) -> None:
+    """Flip a client's status to 'removing' and clear any prior run tracking.
+
+    Setting status to anything other than "dispatched" immediately blocks
+    that client's site login/session (see auth.py), regardless of how long
+    the removal workflow itself takes to finish.
+    """
+    async with get_session() as session:
+        await session.execute(
+            update(Client)
+            .where(Client.id == client_id)
+            .values(
+                status="removing",
+                github_run_id=None,
+                github_run_status=None,
+                github_run_conclusion=None,
+            )
+        )
+        await session.commit()
+
+
+async def client_update(client_id: UUID, email: str, flow: str) -> None:
+    """Update a client's email/flow with no status change.
+
+    Only used for a client whose "add" was never actually dispatched yet
+    (status "pending") — nothing exists server-side to update, so the next
+    "Retry" of the add picks up these new values on its own.
+    """
+    async with get_session() as session:
+        await session.execute(
+            update(Client).where(Client.id == client_id).values(email=email, flow=flow)
+        )
+        await session.commit()
+
+
+async def client_mark_pending_update(client_id: UUID, email: str, flow: str) -> None:
+    """Update a client's email/flow and flip status to 'pending_update'.
+
+    Set before the update-workflow dispatch is even attempted (same idea as
+    `client_mark_pending_removal`), so a failed dispatch still leaves a
+    distinguishable, retryable state. Unlike removal, this status still
+    allows site login (see auth.py) — editing metadata isn't a security
+    revocation.
+    """
+    async with get_session() as session:
+        await session.execute(
+            update(Client)
+            .where(Client.id == client_id)
+            .values(
+                email=email,
+                flow=flow,
+                status="pending_update",
+                github_run_id=None,
+                github_run_status=None,
+                github_run_conclusion=None,
+            )
+        )
+        await session.commit()
+
+
+async def client_mark_updating(client_id: UUID) -> None:
+    """Flip a client's status to 'updating' and clear any prior run tracking."""
+    async with get_session() as session:
+        await session.execute(
+            update(Client)
+            .where(Client.id == client_id)
+            .values(
+                status="updating",
+                github_run_id=None,
+                github_run_status=None,
+                github_run_conclusion=None,
+            )
+        )
+        await session.commit()
+
+
+async def client_mark_updated(client_id: UUID) -> None:
+    """Flip a client's status back to 'dispatched' once its edit has confirmed success.
+
+    Deliberately does not reset the run-tracking columns — they keep
+    reflecting the edit's own outcome, the same way `client_mark_removing`
+    repurposes them for the remove workflow rather than the original add.
+    """
+    async with get_session() as session:
+        await session.execute(
+            update(Client).where(Client.id == client_id).values(status="dispatched")
+        )
+        await session.commit()
+
+
+async def client_delete(client_id: UUID) -> None:
+    """Hard-delete a client row once its removal workflow has confirmed success."""
+    async with get_session() as session:
+        await session.execute(delete(Client).where(Client.id == client_id))
         await session.commit()
 
 

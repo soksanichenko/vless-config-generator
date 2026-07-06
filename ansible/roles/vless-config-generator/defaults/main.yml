@@ -29,6 +29,8 @@ vless_config_generator_vless_server_port: 443
 # writes to Infisical directly.
 vless_config_generator_github_repo: "soksanichenko/infra"
 vless_config_generator_github_workflow_file: "add-vless-client.yml"
+vless_config_generator_github_remove_workflow_file: "remove-vless-client.yml"
+vless_config_generator_github_update_workflow_file: "update-vless-client.yml"
 
 # Nginx — defaults match infra's nginx role
 nginx_docker_container_name: 'nginx-server'

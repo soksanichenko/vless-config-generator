@@ -22,15 +22,29 @@ from .cache import Cache
 from .config import AppConfig
 from .db import (
     client_create,
+    client_delete,
     client_get,
+    client_get_by_email,
     client_list,
     client_mark_dispatched,
+    client_mark_pending_removal,
+    client_mark_pending_update,
+    client_mark_removing,
+    client_mark_updated,
+    client_mark_updating,
     client_set_run_id,
+    client_update,
     client_update_run_status,
     init_db,
 )
 from .github_categories import get_ruleset_categories
-from .github_dispatch import dispatch_new_client, find_run_id, get_run_status
+from .github_dispatch import (
+    dispatch_new_client,
+    dispatch_remove_client,
+    dispatch_update_client,
+    find_run_id,
+    get_run_status,
+)
 from .sessions import (
     ADMIN_COOKIE_NAME,
     SITE_COOKIE_NAME,
@@ -64,7 +78,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-async def _dispatch_and_mark(client) -> None:
+async def _dispatch_add_and_mark(client) -> None:
     try:
         await dispatch_new_client(
             _http,
@@ -73,39 +87,97 @@ async def _dispatch_and_mark(client) -> None:
             workflow_file=config.github_workflow_file,
             email=client.email,
             client_uuid=str(client.client_uuid),
+            flow=client.flow,
         )
         await client_mark_dispatched(client.id)
     except Exception:
         logger.exception(
-            "Failed to dispatch infra workflow for client %s", client.email
+            "Failed to dispatch infra add-client workflow for client %s", client.email
         )
 
 
-async def _refresh_client_runs(clients: list) -> None:
-    """Best-effort refresh of each dispatched client's GitHub Actions run state.
+async def _dispatch_remove_and_mark(client) -> None:
+    try:
+        await dispatch_remove_client(
+            _http,
+            github_token=config.github_token,
+            repo=config.github_repo,
+            workflow_file=config.github_remove_workflow_file,
+            client_uuid=str(client.client_uuid),
+        )
+        await client_mark_removing(client.id)
+    except Exception:
+        logger.exception(
+            "Failed to dispatch infra remove-client workflow for client %s",
+            client.email,
+        )
+
+
+async def _dispatch_update_and_mark(client) -> None:
+    try:
+        await dispatch_update_client(
+            _http,
+            github_token=config.github_token,
+            repo=config.github_repo,
+            workflow_file=config.github_update_workflow_file,
+            client_uuid=str(client.client_uuid),
+            email=client.email,
+            flow=client.flow,
+        )
+        await client_mark_updating(client.id)
+    except Exception:
+        logger.exception(
+            "Failed to dispatch infra update-client workflow for client %s",
+            client.email,
+        )
+
+
+async def _refresh_client_runs(clients: list) -> list:
+    """Best-effort refresh of each in-flight client's GitHub Actions run state.
 
     Called on every admin dashboard load rather than via a background
     poller or webhook — simplest option for a low-traffic, single-operator
     tool. `workflow_dispatch` returns no run id, so a client without one yet
     gets a lookup attempt on each load until a matching run shows up.
+
+    Handles three directions: "dispatched" clients are polled against the
+    add-client workflow, "removing" against the remove-client one, and
+    "updating" against the update-client one. A "removing" client whose run
+    concludes successfully is hard-deleted here (its site session was
+    already blocked the moment status flipped to "removing", see
+    `client_mark_removing`) and dropped from the returned list so it
+    disappears from this same page load. An "updating" client whose run
+    concludes successfully flips back to "dispatched" (`client_mark_updated`)
+    but keeps its run-tracking columns as-is, so the edit's own outcome
+    stays visible instead of being reset to blank.
     """
+    workflow_file_for_status = {
+        "dispatched": config.github_workflow_file,
+        "removing": config.github_remove_workflow_file,
+        "updating": config.github_update_workflow_file,
+    }
+    remaining = []
     for client in clients:
-        if client.status != "dispatched":
+        if client.status not in workflow_file_for_status:
+            remaining.append(client)
             continue
+        workflow_file = workflow_file_for_status[client.status]
         try:
             if client.github_run_id is None:
                 run_id = await find_run_id(
                     _http,
                     github_token=config.github_token,
                     repo=config.github_repo,
-                    workflow_file=config.github_workflow_file,
+                    workflow_file=workflow_file,
                     after=client.created_at - timedelta(seconds=10),
                 )
-                if run_id is None:
-                    continue
-                await client_set_run_id(client.id, run_id)
-                client.github_run_id = run_id
-            if client.github_run_status != "completed":
+                if run_id is not None:
+                    await client_set_run_id(client.id, run_id)
+                    client.github_run_id = run_id
+            if (
+                client.github_run_id is not None
+                and client.github_run_status != "completed"
+            ):
                 status, conclusion = await get_run_status(
                     _http,
                     github_token=config.github_token,
@@ -121,6 +193,14 @@ async def _refresh_client_runs(clients: list) -> None:
                     client.github_run_conclusion = conclusion
         except Exception:
             logger.exception("Failed to refresh GitHub run state for %s", client.email)
+        if client.status == "removing" and client.github_run_conclusion == "success":
+            await client_delete(client.id)
+            continue
+        if client.status == "updating" and client.github_run_conclusion == "success":
+            await client_mark_updated(client.id)
+            client.status = "dispatched"
+        remaining.append(client)
+    return remaining
 
 
 # ── Routes: site login ──────────────────────────────────────────────────────────
@@ -246,8 +326,7 @@ async def admin_logout(request: Request) -> Response:
 
 @app.get("/admin/", response_class=HTMLResponse)
 async def admin_dashboard(request: Request) -> HTMLResponse:
-    clients = await client_list()
-    await _refresh_client_runs(clients)
+    clients = await _refresh_client_runs(await client_list())
     return templates.TemplateResponse(
         "admin/dashboard.html",
         {"request": request, "clients": clients, "github_repo": config.github_repo},
@@ -255,18 +334,83 @@ async def admin_dashboard(request: Request) -> HTMLResponse:
 
 
 @app.post("/admin/clients")
-async def admin_add_client(email: str = Form(...)) -> RedirectResponse:
+async def admin_add_client(
+    email: str = Form(...), flow: str = Form(...)
+) -> RedirectResponse:
     """Create a new client and dispatch the infra workflow that provisions it on xray."""
-    client = await client_create(email)
-    await _dispatch_and_mark(client)
+    client = await client_create(email, flow)
+    await _dispatch_add_and_mark(client)
     return RedirectResponse("/admin/", status_code=303)
 
 
 @app.post("/admin/clients/{client_id}/retry")
 async def admin_retry_dispatch(client_id: UUID) -> RedirectResponse:
-    """Retry a failed/pending GitHub dispatch for an existing client."""
+    """Retry a failed/pending GitHub dispatch for an existing client.
+
+    Re-dispatches whichever workflow matches the client's current direction
+    — add for a pending/failed addition, remove for a failed removal, update
+    for a failed edit — using whatever email/flow is currently stored (the
+    edit route already persisted the new values before this could be
+    needed), so retrying never accidentally re-adds a client that was being
+    removed, or re-applies stale values from before an edit.
+    """
     client = await client_get(client_id)
     if client is None:
         raise HTTPException(status_code=404, detail="Client not found")
-    await _dispatch_and_mark(client)
+    if client.status in ("removing", "pending_removal"):
+        await _dispatch_remove_and_mark(client)
+    elif client.status in ("updating", "pending_update"):
+        await _dispatch_update_and_mark(client)
+    else:
+        await _dispatch_add_and_mark(client)
+    return RedirectResponse("/admin/", status_code=303)
+
+
+@app.post("/admin/clients/{client_id}/edit")
+async def admin_edit_client(
+    client_id: UUID, email: str = Form(...), flow: str = Form(...)
+) -> RedirectResponse:
+    """Update a client's email/flow and dispatch the infra workflow that applies it.
+
+    A client whose original "add" was never actually dispatched (status
+    "pending") has no server-side entry yet to update — this just persists
+    the new values so the next "Retry" of the add uses them. Otherwise,
+    status flips to "pending_update" immediately (not a security revocation,
+    so site login stays allowed — see `_LOGIN_ALLOWED_STATUSES` in auth.py),
+    then to "updating" once the dispatch call actually succeeds.
+    """
+    client = await client_get(client_id)
+    if client is None:
+        raise HTTPException(status_code=404, detail="Client not found")
+    existing = await client_get_by_email(email)
+    if existing is not None and existing.id != client.id:
+        raise HTTPException(
+            status_code=409, detail="Email already in use by another client"
+        )
+    if client.status == "pending":
+        await client_update(client.id, email, flow)
+    else:
+        await client_mark_pending_update(client.id, email, flow)
+        client.email = email
+        client.flow = flow
+        await _dispatch_update_and_mark(client)
+    return RedirectResponse("/admin/", status_code=303)
+
+
+@app.post("/admin/clients/{client_id}/delete")
+async def admin_delete_client(client_id: UUID) -> RedirectResponse:
+    """Dispatch the infra workflow that removes a client from xray.
+
+    Status flips to "pending_removal" immediately (blocking its site login
+    right away, mirroring `client_create`'s initial "pending" for the add
+    flow), then to "removing" once the dispatch call actually succeeds. The
+    row itself is only hard-deleted once the dashboard's next load confirms
+    the workflow succeeded (see `_refresh_client_runs`).
+    """
+    client = await client_get(client_id)
+    if client is None:
+        raise HTTPException(status_code=404, detail="Client not found")
+    await client_mark_pending_removal(client.id)
+    client.status = "pending_removal"
+    await _dispatch_remove_and_mark(client)
     return RedirectResponse("/admin/", status_code=303)

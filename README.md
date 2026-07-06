@@ -16,12 +16,21 @@ below.
 - **Client credentials** — pulls VLESS credentials (UUID, Reality public
   key, short ID, SNI) from the backend's `/api/client` for whichever client
   you logged in as — no picker, no other client's credentials ever exposed
-- **Admin panel** (`/admin/`) — add new VLESS clients from a browser
-  instead of hand-editing `infra`'s config. Adding a client dispatches a
-  GitHub Actions workflow in `infra` that writes the new client's UUID to
-  Infisical and redeploys xray; this app never holds Infisical write
-  credentials itself. Gated by its own login (`/admin/login`), independent
-  of the site login below — a bug in one can't lock you out of the other
+- **Admin panel** (`/admin/`) — add, edit, or delete VLESS clients from a
+  browser instead of hand-editing `infra`'s config. Adding/editing a client
+  picks its xray `flow` from a dropdown (`xtls-rprx-vision` /
+  `xtls-rprx-vision-udp443` / empty — pick empty for a client using this
+  app's own multiplex option, see above, since Vision and mux can't be
+  combined); email/flow are editable in place for any client that isn't
+  mid-removal. Each action dispatches a GitHub Actions workflow in `infra`
+  (add-, update-, or remove-client) that updates Infisical and redeploys
+  xray; this app never holds Infisical write credentials itself. Deleting a
+  client blocks its site login immediately, before the removal workflow
+  even finishes running — editing never does, since it isn't a security
+  revocation. The dashboard auto-refreshes every 5s while an
+  add/edit/remove is in flight. Gated by its own login (`/admin/login`),
+  independent of the site login below — a bug in one can't lock you out of
+  the other
 - **Site login via client credentials** — `vless-gen.zelgray.work` is
   gated by nginx `auth_request` against the backend: log in at `/login`
   with an existing client's email + VLESS UUID, gets you a signed session

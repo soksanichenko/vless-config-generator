@@ -28,6 +28,13 @@ class Client(Base):
     client_uuid: MappedColumn[UUID] = mapped_column(
         UUID(as_uuid=True), nullable=False, unique=True
     )
+    # xray inbound "flow" for this client's VLESS entry — "xtls-rprx-vision",
+    # "xtls-rprx-vision-udp443", or "" (omits the key from xray's config
+    # entirely, e.g. when paired with sing-box multiplex, which Vision can't
+    # be combined with).
+    flow: MappedColumn[str] = mapped_column(
+        String, nullable=False, server_default="xtls-rprx-vision"
+    )
     # "pending" until the infra GitHub Actions workflow is successfully
     # dispatched; "dispatched" after that — just that the trigger call
     # succeeded, not that xray actually restarted. The real outcome is
