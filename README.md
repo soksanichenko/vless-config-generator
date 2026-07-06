@@ -18,10 +18,10 @@ below.
   you logged in as — no picker, no other client's credentials ever exposed
 - **Admin panel** (`/admin/`) — add, edit, or delete VLESS clients from a
   browser instead of hand-editing `infra`'s config. Adding/editing a client
-  picks its xray `flow` from a dropdown (`xtls-rprx-vision` /
-  `xtls-rprx-vision-udp443` / empty — pick empty for a client using this
-  app's own multiplex option, see above, since Vision and mux can't be
-  combined); email/flow are editable in place for any client that isn't
+  picks its xray `flow` from a dropdown (`xtls-rprx-vision` / empty — pick
+  empty for a client using this app's own multiplex option, see above,
+  since Vision and mux can't be combined); email/flow are editable in
+  place for any client that isn't
   mid-removal. Each action dispatches a GitHub Actions workflow in `infra`
   (add-, update-, or remove-client) that updates Infisical and redeploys
   xray; this app never holds Infisical write credentials itself. Deleting a

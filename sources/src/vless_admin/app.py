@@ -164,12 +164,13 @@ async def _refresh_client_runs(clients: list) -> list:
         workflow_file = workflow_file_for_status[client.status]
         try:
             if client.github_run_id is None:
+                after = client.action_dispatched_at or client.created_at
                 run_id = await find_run_id(
                     _http,
                     github_token=config.github_token,
                     repo=config.github_repo,
                     workflow_file=workflow_file,
-                    after=client.created_at - timedelta(seconds=10),
+                    after=after - timedelta(seconds=10),
                 )
                 if run_id is not None:
                     await client_set_run_id(client.id, run_id)

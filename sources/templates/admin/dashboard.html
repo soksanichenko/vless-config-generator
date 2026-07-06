@@ -9,123 +9,225 @@
   {% endif %}
   <title>vless-config-generator — Admin</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #1b1e24; }
-    h1 { font-size: 1.3rem; }
-    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #ddd; font-size: 0.9rem; }
-    .status-pending, .status-pending_removal, .status-pending_update { color: #a06a00; }
-    .status-dispatched { color: #157347; }
-    .status-removing { color: #b3261e; }
-    .status-updating { color: #0a5aa6; }
-    .run-queued, .run-in_progress { color: #0a5aa6; }
-    .run-success { color: #157347; }
-    .run-failure, .run-cancelled, .run-timed_out { color: #b3261e; }
-    form.add-client { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
-    input[type="email"] { flex: 1; padding: 0.4rem; }
-    button { padding: 0.4rem 0.9rem; cursor: pointer; }
-    td.actions { display: flex; gap: 0.5rem; }
-    button.danger { background: #b3261e; color: #fff; border: none; border-radius: 3px; }
+    :root {
+      color-scheme: dark;
+      --bg: #0f1115;
+      --panel: #171a21;
+      --border: #2a2f3a;
+      --text: #e6e8ec;
+      --text-dim: #9aa1ad;
+      --accent: #4f8cff;
+      --danger: #ff6b6b;
+      --warn: #e0b34d;
+      --good: #6bd08a;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .page {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px 16px 64px;
+    }
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .page-header a {
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      text-decoration: none;
+    }
+    .page-header a:hover { color: var(--accent); }
+    h1 { font-size: 1.4rem; margin: 4px 0 0; }
+    h2 { font-size: 1rem; margin: 0 0 12px; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+    th { color: var(--text-dim); font-weight: 600; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; }
+    .status-pending, .status-pending_removal, .status-pending_update { color: var(--warn); }
+    .status-dispatched { color: var(--good); }
+    .status-removing { color: var(--danger); }
+    .status-updating { color: var(--accent); }
+    .run-queued, .run-in_progress { color: var(--accent); }
+    .run-success { color: var(--good); }
+    .run-failure, .run-cancelled, .run-timed_out { color: var(--danger); }
+    a.run-queued, a.run-in_progress, a.run-success, a.run-failure, a.run-cancelled, a.run-timed_out {
+      text-decoration: none;
+    }
+    a.run-queued:hover, a.run-in_progress:hover, a.run-success:hover,
+    a.run-failure:hover, a.run-cancelled:hover, a.run-timed_out:hover {
+      text-decoration: underline;
+    }
+    input[type="email"], select {
+      background: #0d0f13;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 7px 9px;
+      font-size: 0.85rem;
+      font-family: inherit;
+    }
+    button {
+      background: #1f2430;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 7px 14px;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    button:hover { border-color: var(--accent); }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #06121f; font-weight: 600; }
+    button.danger { color: var(--danger); border-color: var(--danger); }
+    form.add-client { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    form.add-client input[type="email"] { flex: 1; min-width: 200px; }
+    td.actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .help-list { margin: 0; padding-left: 1.1rem; color: var(--text-dim); font-size: 0.82rem; }
+    .help-list li { margin-bottom: 8px; }
+    .help-list li:last-child { margin-bottom: 0; }
   </style>
 </head>
 <body>
+<div class="page">
 
-<form method="post" action="/admin/logout" style="float:right">
-  <button type="submit">Log out</button>
-</form>
-<p><a href="/">&larr; Back to generator</a></p>
-<h1>VLESS clients</h1>
+  <div class="page-header">
+    <div>
+      <a href="/">&larr; Back to generator</a>
+      <h1>VLESS clients</h1>
+    </div>
+    <form method="post" action="/admin/logout">
+      <button type="submit">Log out</button>
+    </form>
+  </div>
 
-<table>
-  <thead>
-    <tr><th>Email</th><th>UUID</th><th>Flow</th><th>Status</th><th>Workflow run</th><th>Created</th><th></th></tr>
-  </thead>
-  <tbody>
-    {% for client in clients %}
-    {% set editable = client.status in ("pending", "dispatched") %}
-    <tr>
-      <td>
-        {% if editable %}
-        <form id="edit-{{ client.id }}" method="post" action="/admin/clients/{{ client.id }}/edit"></form>
-        <input type="email" name="email" value="{{ client.email }}" form="edit-{{ client.id }}" required>
-        {% else %}
-        {{ client.email }}
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>Email</th><th>UUID</th><th>Flow</th><th>Status</th><th>Workflow run</th><th>Created</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for client in clients %}
+        {% set editable = client.status in ("pending", "dispatched") %}
+        <tr>
+          <td>
+            {% if editable %}
+            <form id="edit-{{ client.id }}" method="post" action="/admin/clients/{{ client.id }}/edit"></form>
+            <input type="email" name="email" value="{{ client.email }}" form="edit-{{ client.id }}" required>
+            {% else %}
+            {{ client.email }}
+            {% endif %}
+          </td>
+          <td><code>{{ client.client_uuid }}</code></td>
+          <td>
+            {% if editable %}
+            <select name="flow" form="edit-{{ client.id }}">
+              <option value="xtls-rprx-vision" {{ "selected" if client.flow == "xtls-rprx-vision" }}>xtls-rprx-vision</option>
+              <option value="" {{ "selected" if not client.flow }}>empty (no flow)</option>
+            </select>
+            {% else %}
+            {{ client.flow if client.flow else "&mdash;"|safe }}
+            {% endif %}
+          </td>
+          <td class="status-{{ client.status }}">{{ client.status }}</td>
+          <td>
+            {% if client.status not in ("dispatched", "removing", "updating") %}
+              &mdash;
+            {% elif client.github_run_id is none %}
+              <span>looking up run&hellip;</span>
+            {% else %}
+              {% set run_state = client.github_run_conclusion if client.github_run_status == "completed" else client.github_run_status %}
+              <a class="run-{{ run_state }}" href="https://github.com/{{ github_repo }}/actions/runs/{{ client.github_run_id }}" target="_blank" rel="noopener">{{ run_state }}</a>
+            {% endif %}
+          </td>
+          <td>{{ client.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td class="actions">
+            {% if editable %}
+            <button type="submit" form="edit-{{ client.id }}">Save</button>
+            {% endif %}
+            {% if client.status in ("pending", "pending_removal", "pending_update") or client.github_run_conclusion == "failure" %}
+            <form method="post" action="/admin/clients/{{ client.id }}/retry">
+              <button type="submit">Retry</button>
+            </form>
+            {% endif %}
+            {% if client.status not in ("pending_removal", "removing") %}
+            <form method="post" action="/admin/clients/{{ client.id }}/delete"
+                  onsubmit="return confirm('Remove {{ client.email }}? This revokes their access immediately.');">
+              <button type="submit" class="danger">Delete</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        {% if not clients %}
+        <tr><td colspan="7">No clients yet.</td></tr>
         {% endif %}
-      </td>
-      <td><code>{{ client.client_uuid }}</code></td>
-      <td>
-        {% if editable %}
-        <select name="flow" form="edit-{{ client.id }}">
-          <option value="xtls-rprx-vision" {{ "selected" if client.flow == "xtls-rprx-vision" }}>xtls-rprx-vision</option>
-          <option value="xtls-rprx-vision-udp443" {{ "selected" if client.flow == "xtls-rprx-vision-udp443" }}>xtls-rprx-vision-udp443</option>
-          <option value="" {{ "selected" if not client.flow }}>empty (no flow)</option>
-        </select>
-        {% else %}
-        {{ client.flow if client.flow else "(empty)" }}
-        {% endif %}
-      </td>
-      <td class="status-{{ client.status }}">{{ client.status }}</td>
-      <td>
-        {% if client.status not in ("dispatched", "removing", "updating") %}
-          &mdash;
-        {% elif client.github_run_id is none %}
-          <span>looking up run&hellip;</span>
-        {% else %}
-          {% set run_state = client.github_run_conclusion if client.github_run_status == "completed" else client.github_run_status %}
-          <a class="run-{{ run_state }}" href="https://github.com/{{ github_repo }}/actions/runs/{{ client.github_run_id }}" target="_blank" rel="noopener">{{ run_state }}</a>
-        {% endif %}
-      </td>
-      <td>{{ client.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-      <td class="actions">
-        {% if editable %}
-        <button type="submit" form="edit-{{ client.id }}">Save</button>
-        {% endif %}
-        {% if client.status in ("pending", "pending_removal", "pending_update") or client.github_run_conclusion == "failure" %}
-        <form method="post" action="/admin/clients/{{ client.id }}/retry">
-          <button type="submit">Retry</button>
-        </form>
-        {% endif %}
-        {% if client.status not in ("pending_removal", "removing") %}
-        <form method="post" action="/admin/clients/{{ client.id }}/delete"
-              onsubmit="return confirm('Remove {{ client.email }}? This revokes their access immediately.');">
-          <button type="submit" class="danger">Delete</button>
-        </form>
-        {% endif %}
-      </td>
-    </tr>
-    {% endfor %}
-    {% if not clients %}
-    <tr><td colspan="7">No clients yet.</td></tr>
-    {% endif %}
-  </tbody>
-</table>
+      </tbody>
+    </table>
+  </div>
 
-<form class="add-client" method="post" action="/admin/clients">
-  <input type="email" name="email" placeholder="new-client@example.com" required>
-  <select name="flow">
-    <option value="xtls-rprx-vision" selected>xtls-rprx-vision</option>
-    <option value="xtls-rprx-vision-udp443">xtls-rprx-vision-udp443</option>
-    <option value="">empty (no flow)</option>
-  </select>
-  <button type="submit">Add client</button>
-</form>
+  <div class="card">
+    <h2>Add client</h2>
+    <form class="add-client" method="post" action="/admin/clients">
+      <input type="email" name="email" placeholder="new-client@example.com" required>
+      <select name="flow">
+        <option value="xtls-rprx-vision" selected>xtls-rprx-vision</option>
+        <option value="">empty (no flow)</option>
+      </select>
+      <button type="submit" class="primary">Add client</button>
+    </form>
+  </div>
 
-<p style="color:#666;font-size:0.85rem;margin-top:1rem">
-  Adding a client dispatches the <code>infra</code> repo's GitHub Actions
-  workflow, which writes the new client's UUID to Infisical and redeploys
-  xray. "dispatched" means the trigger call succeeded; the "Workflow run"
-  column reflects the actual run's status/outcome, refreshed each time this
-  page loads — "success" means xray actually restarted with the new client.
-  Deleting a client dispatches the matching removal workflow and blocks
-  their site login immediately ("pending_removal"/"removing"); the row
-  itself disappears once a page load confirms the removal run succeeded.
-  "Flow" is xray's per-client VLESS flow control — pick "empty" if this
-  client's own sing-box config enables multiplexing, since Vision
-  (xtls-rprx-vision/-udp443) and mux can't be combined. Email/Flow are
-  editable in place ("Save") except while an add/edit/remove is already in
-  flight for that client; editing dispatches the matching update workflow
-  and never revokes site login, unlike deleting. This page auto-refreshes
-  every 5s while any client has an add/remove/edit action in flight.
-</p>
+  <div class="card">
+    <h2>How this works</h2>
+    <ul class="help-list">
+      <li>
+        <strong>Add</strong> dispatches the <code>infra</code> repo's
+        GitHub Actions workflow, which writes the new client's UUID to
+        Infisical and redeploys xray. "dispatched" means the trigger call
+        succeeded; the "Workflow run" column reflects the actual run's
+        status/outcome, refreshed each time this page loads —
+        "success" means xray actually restarted with the new client.
+      </li>
+      <li>
+        <strong>Delete</strong> dispatches the matching removal workflow
+        and blocks the client's site login immediately
+        ("pending_removal"/"removing"); the row itself disappears once a
+        page load confirms the removal run succeeded.
+      </li>
+      <li>
+        <strong>Edit</strong> — email/flow are editable in place ("Save")
+        except while an add/edit/remove is already in flight for that
+        client. Editing dispatches the matching update workflow and never
+        revokes site login, unlike deleting.
+      </li>
+      <li>
+        <strong>Flow</strong> is xray's per-client VLESS flow control —
+        pick "empty" if this client's own sing-box config enables
+        multiplexing, since Vision (xtls-rprx-vision) and mux can't be
+        combined.
+      </li>
+      <li>
+        This page <strong>auto-refreshes every 5s</strong> while any
+        client has an add/remove/edit action in flight.
+      </li>
+    </ul>
+  </div>
 
+</div>
 </body>
 </html>

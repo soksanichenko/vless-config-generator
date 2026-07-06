@@ -28,10 +28,9 @@ class Client(Base):
     client_uuid: MappedColumn[UUID] = mapped_column(
         UUID(as_uuid=True), nullable=False, unique=True
     )
-    # xray inbound "flow" for this client's VLESS entry — "xtls-rprx-vision",
-    # "xtls-rprx-vision-udp443", or "" (omits the key from xray's config
-    # entirely, e.g. when paired with sing-box multiplex, which Vision can't
-    # be combined with).
+    # xray inbound "flow" for this client's VLESS entry — "xtls-rprx-vision"
+    # or "" (omits the key from xray's config entirely, e.g. when paired
+    # with sing-box multiplex, which Vision can't be combined with).
     flow: MappedColumn[str] = mapped_column(
         String, nullable=False, server_default="xtls-rprx-vision"
     )
@@ -50,6 +49,16 @@ class Client(Base):
     github_run_status: MappedColumn[str | None] = mapped_column(String, nullable=True)
     github_run_conclusion: MappedColumn[str | None] = mapped_column(
         String, nullable=True
+    )
+    # When the currently-tracked action (add/update/remove) was actually
+    # dispatched — used as the lower bound when matching a workflow run
+    # (see `_refresh_client_runs`), since `created_at` is only accurate for
+    # the original add; an edit or removal can happen long after creation,
+    # and matching against `created_at` there would pick up an unrelated,
+    # already-completed run of the same workflow file. Null on rows created
+    # before this column existed.
+    action_dispatched_at: MappedColumn[DateTime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
     created_at: MappedColumn[DateTime] = mapped_column(
         DateTime(timezone=True),

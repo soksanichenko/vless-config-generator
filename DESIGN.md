@@ -281,22 +281,33 @@ implemented from for the full ground-truth investigation):
   failed add, re-dispatching the remove workflow specifically (never the
   add one) since the retry route branches on the client's current status.
 - **Per-client `flow`** — the add-client form has a dropdown
-  (`xtls-rprx-vision` / `xtls-rprx-vision-udp443` / empty), stored on the
-  `clients` row (`flow` column, migration `6b1f4e9a2d7c`) and passed through
-  to `infra`'s `add-vless-client.yml` as a third input. "Empty" exists for
+  (`xtls-rprx-vision` / empty), stored on the `clients` row (`flow` column,
+  migration `6b1f4e9a2d7c`) and passed through to `infra`'s
+  `add-vless-client.yml`/`update-vless-client.yml` as an input. (An earlier
+  iteration also offered `xtls-rprx-vision-udp443`; dropped as an outdated
+  xray flow value not worth keeping in the dropdown.) "Empty" exists for
   clients running sing-box's multiplex feature (see "Multiplexing (mux)"
   above) — Vision and mux can't be combined, so a client using mux needs its
   server-side xray entry to have no `flow` key at all, not just an empty
   string (xray treats an empty `"flow": ""` differently from the key being
   absent). `infra`'s `config.json.j2` reflects this per-client instead of
   the old hardcoded `"flow": "xtls-rprx-vision"` for every entry: if
-  `client.flow` is present and non-empty it's used as-is, empty omits the
-  key, and — for backward compatibility with existing `vless-clients`
+  `client.flow` is present and non-empty it's used as-is, present-but-empty
+  omits the key, and — for backward compatibility with `vless-clients`
   entries that predate this field and have no `flow` key at all — a
   genuinely *missing* key still defaults to `xtls-rprx-vision`, matching
-  the old hardcoded behavior exactly. Existing entries can still be
-  backfilled with an explicit `flow` in Infisical; the fallback just means
-  that isn't mandatory for the rollout to be safe.
+  the old hardcoded behavior exactly.
+  **Bug fixed:** `add_vless_client.yml`/`update_vless_client.yml` originally
+  built the entry's `flow` field via `combine({'flow': ...} if non-empty
+  else {})`, which meant picking "empty" in the dropdown produced an entry
+  with **no `flow` key at all** — indistinguishable from a genuinely legacy
+  entry, so `config.json.j2`'s backward-compat branch silently defaulted it
+  right back to `xtls-rprx-vision` instead of actually removing the key.
+  Both playbooks now always set `flow` explicitly (`vless_client_flow |
+  default('')`), so "empty" is written as `"flow": ""` — present but
+  falsy — which `config.json.j2` already correctly treats as "omit from
+  xray's config", while a truly *missing* key (rows never touched by
+  either workflow) still gets the backward-compat default.
 - **Editing a client** (`POST /admin/clients/{id}/edit`, email + flow only —
   the UUID itself is never editable through this route, that would be
   credential rotation, a separate concern not implemented here) reuses the
@@ -335,12 +346,19 @@ implemented from for the full ground-truth investigation):
   `update-vless-client.yml` (inputs `uuid`/`email`/`flow`) + `playbooks/
   update_vless_client.yml` rebuilds the list with that one entry's
   `email`/`flow` replaced (same `rejectattr` removal, then re-appends a
-  freshly built entry — so a stale `flow` from before the edit can't leak
-  through the way a plain `combine` over the old entry would) — all three
-  redeploy via the same `xray.yml` afterward. No new Infisical secret or
-  GitHub token scope needed for either the remove or the update workflow,
-  since both reuse the same `vless-clients` secret and the same
-  `actions:write`-scoped PAT this repo's backend already holds. All three
+  freshly built `{id, email, flow}` entry — so a stale `flow` from before
+  the edit can't leak through) — all three redeploy via the same
+  `xray.yml --tags config` afterward. That tag runs only `xray`'s
+  config-templating task and its restart-on-change handler (plain
+  `docker_container: restart: yes` on the already-running container),
+  skipping the `docker` role and the container-recreate/image-pull task
+  entirely — applying a client change is just "template the new config,
+  restart the existing container," not a redeploy from scratch, which
+  matters since this now runs on every single add/edit/remove. No new
+  Infisical secret or GitHub token scope needed for either the remove or
+  the update workflow, since both reuse the same `vless-clients` secret
+  and the same `actions:write`-scoped PAT this repo's backend already
+  holds. All three
   workflows run on a **GitHub-hosted runner** (`runs-on: ubuntu-latest`) — a self-hosted
   runner on the VDS was considered but rejected in favor of less manual
   maintenance; the workflow instead loads an SSH key from the

@@ -85,6 +85,7 @@ async def client_mark_dispatched(client_id: UUID) -> None:
                 github_run_id=None,
                 github_run_status=None,
                 github_run_conclusion=None,
+                action_dispatched_at=datetime.now(UTC),
             )
         )
         await session.commit()
@@ -129,6 +130,7 @@ async def client_mark_removing(client_id: UUID) -> None:
                 github_run_id=None,
                 github_run_status=None,
                 github_run_conclusion=None,
+                action_dispatched_at=datetime.now(UTC),
             )
         )
         await session.commit()
@@ -184,6 +186,7 @@ async def client_mark_updating(client_id: UUID) -> None:
                 github_run_id=None,
                 github_run_status=None,
                 github_run_conclusion=None,
+                action_dispatched_at=datetime.now(UTC),
             )
         )
         await session.commit()
