@@ -164,6 +164,35 @@ pre-existing `dns`-level keys in the pasted config pass through untouched.
   resolve "correctly" (through the right DNS path) while the actual
   TCP/UDP connection still goes the wrong way and hits a block.
 
+## Multiplexing (mux)
+
+Some ISPs (notably several Russian mobile carriers, per DPI/TSPU-related
+reporting) cap the number of concurrent TLS connections a client can hold
+open to a single host — low enough (as low as 10) that ordinary browser
+usage (several tabs, background mail/messenger sync) can exceed it and
+start dropping connections. sing-box's `multiplex` block addresses this by
+bundling many logical streams over a handful of physical TLS connections.
+
+- Modeled as an optional card (`frontend/src/components/
+  MultiplexSettings.tsx`), gated by a single "enable" checkbox — the
+  protocol/max-connections/min-streams/padding fields only render once
+  enabled, defaulting to `h2mux` (sing-box's own recommended default over
+  `smux`/`yamux`), 4 max connections, 4 min streams, padding off. State
+  lives in `frontend/src/types/multiplex.ts` (`MultiplexSettings`).
+- `buildOutputConfig` (`frontend/src/lib/buildConfig.ts`,
+  `applyMultiplexToOutbound`) applies this to the same outbound the client
+  credentials get injected into. When enabled it writes `outbound.multiplex`
+  and **deletes any `flow` field** (e.g. the default template's
+  `xtls-rprx-vision`) — Vision's flow control and mux multiplexing can't be
+  combined. When disabled, `multiplex` is deleted from the outbound (so
+  toggling back off cleanly removes it) and `flow` is left untouched either
+  way it was found.
+- Not region-specific: unlike the Region dropdown, this is a plain checkbox
+  independent of the `Default`/`Ukraine`/`Russia` selection, since the
+  underlying TLS-connection-count limit isn't tied to a specific country's
+  DNS/routing profile in the code — the user enables it based on their own
+  ISP's behavior.
+
 ## Localization
 
 EN/UA/RU support (`frontend/src/i18n/translations.ts`, `LangContext.tsx`,
@@ -261,7 +290,12 @@ implemented from for the full ground-truth investigation):
   browser-native prompt has no logout and caches per-origin until the
   browser's site data is cleared, which made testing as different clients
   painful. Credential = the client's own `email:uuid` (reuses the existing
-  secret, no new credential type invented).
+  secret, no new credential type invented). The UUID field renders as
+  `type="password"` (masked, was plain `text`) with
+  `autocomplete="current-password"`, and the email field carries
+  `autocomplete="username"`, so password managers (e.g. Bitwarden) recognize
+  and offer to save/fill the pair instead of ignoring it as a plain-text
+  field. Same treatment on `/admin/login`'s username/password fields.
 - The admin page (`/admin/`, server-rendered FastAPI/Jinja2, not a React
   route — matches `hotline-listing`'s own precedent) has its own,
   independent `GET/POST /admin/login` + `POST /admin/logout` and its own
@@ -350,8 +384,9 @@ cookie-session based, both enforced via nginx `auth_request`:
 2. Paste an existing sing-box `config.json` as the base.
 3. Build/edit routing rules in the rule list (conditions + direct/proxy
    action, drag to reorder).
-4. Set the default outbound (direct/proxy toggle) and the Region
-   (Default/Ukraine/Russia).
+4. Set the default outbound (direct/proxy toggle), the Region
+   (Default/Ukraine/Russia), and optionally enable multiplexing (mux) if
+   your ISP caps concurrent TLS connections to one host.
 5. Get back the same config with `route` and `dns` replaced — download or
    copy.
 6. Everything from step 2 onward runs entirely in the browser; the client
@@ -446,6 +481,10 @@ cookie-session based, both enforced via nginx `auth_request`:
   against their respective backend endpoint, redirecting to `/login` or
   `/admin/login` on 401 — see that role's `README.md` for the full
   variable/tag reference.
+- Multiplexing (`frontend/src/types/multiplex.ts`, `frontend/src/
+  components/MultiplexSettings.tsx`, `applyMultiplexToOutbound` in
+  `frontend/src/lib/buildConfig.ts`) — see "Multiplexing (mux)" above for
+  the full rationale.
 - Region selection (`frontend/src/lib/regionConfig.ts`,
   `frontend/src/types/region.ts`, `frontend/src/components/
   RegionSelector.tsx`) fully replaces `dns.servers`/`dns.rules`/

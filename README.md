@@ -39,6 +39,12 @@ below.
   is unreachable (e.g. offline local dev)
 - **Default outbound toggle** — explicit direct/proxy choice for unmatched
   traffic, no implicit default
+- **Multiplexing (mux)** — optional, checkbox-gated card that bundles the
+  proxy connection over fewer physical TLS sessions (sing-box `multiplex`
+  block: protocol `h2mux`/`smux`/`yamux`, max connections, min streams,
+  padding). Useful when an ISP caps concurrent TLS connections to one host.
+  Enabling it removes the proxy outbound's `flow` (`xtls-rprx-vision`),
+  since Vision and mux can't be combined
 - **Region** — dropdown (`Default` / `Ukraine` / `Russia`) that fully
   regenerates the output's `dns` section: `Default` is plain Cloudflare DoH;
   `Ukraine` resolves locally by default and re-routes only domains whose

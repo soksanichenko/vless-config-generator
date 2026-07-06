@@ -5,6 +5,7 @@ import { RuleSetManager } from './components/RuleSetManager'
 import { RuleList } from './components/RuleList'
 import { DefaultOutboundToggle } from './components/DefaultOutboundToggle'
 import { RegionSelector } from './components/RegionSelector'
+import { MultiplexSettings } from './components/MultiplexSettings'
 import { OutputPanel } from './components/OutputPanel'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
 import { buildOutputConfig } from './lib/buildConfig'
@@ -14,6 +15,8 @@ import type { SingBoxConfig } from './types/singbox'
 import type { Action, Rule, RuleSetDef } from './types/rules'
 import type { ClientResponse, VlessClient } from './types/clients'
 import type { Region } from './types/region'
+import { DEFAULT_MULTIPLEX_SETTINGS } from './types/multiplex'
+import type { MultiplexSettings as MultiplexSettingsValue } from './types/multiplex'
 import { useLang } from './i18n/LangContext'
 
 export function App() {
@@ -33,6 +36,7 @@ export function App() {
   const [rules, setRules] = useState<Rule[]>([])
   const [defaultAction, setDefaultAction] = useState<Action>('direct')
   const [region, setRegion] = useState<Region>('default')
+  const [multiplex, setMultiplex] = useState<MultiplexSettingsValue>(DEFAULT_MULTIPLEX_SETTINGS)
 
   useEffect(() => {
     fetch('/api/client')
@@ -100,8 +104,20 @@ export function App() {
       proxyOutboundIndex,
       selectedClient: client,
       region,
+      multiplex,
     })
-  }, [parsedConfig, rules, ruleSets, defaultAction, directTag, proxyTag, proxyOutboundIndex, client, region])
+  }, [
+    parsedConfig,
+    rules,
+    ruleSets,
+    defaultAction,
+    directTag,
+    proxyTag,
+    proxyOutboundIndex,
+    client,
+    region,
+    multiplex,
+  ])
 
   return (
     <div className="app">
@@ -116,6 +132,8 @@ export function App() {
       <ClientInfo client={client} loadError={clientError} />
 
       <RegionSelector value={region} onChange={setRegion} />
+
+      <MultiplexSettings value={multiplex} onChange={setMultiplex} />
 
       <ConfigPaste value={configText} onChange={setConfigText} error={parseError} />
 

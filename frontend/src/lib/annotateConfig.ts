@@ -54,6 +54,14 @@ const LINE_COMMENTS: [pattern: string, comment: Record<Lang, string>][] = [
     },
   ],
   [
+    '"multiplex": {',
+    {
+      en: 'bundles this proxy connection over fewer physical TLS sessions — useful against ISP limits on concurrent TLS connections',
+      ua: 'об’єднує це проксі-з’єднання в меншу кількість фізичних TLS-сесій — корисно проти обмежень провайдера на кількість одночасних TLS-з’єднань',
+      ru: 'объединяет это прокси-соединение в меньшее число физических TLS-сессий — полезно против ограничений провайдера на число одновременных TLS-соединений',
+    },
+  ],
+  [
     '"type": "direct"',
     {
       en: 'sends traffic straight out, no proxy',

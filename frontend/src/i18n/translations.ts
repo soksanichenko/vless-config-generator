@@ -43,7 +43,19 @@ const DICT = {
   'region.optionUa': { en: 'Ukraine', ua: 'Україна', ru: 'Украина' },
   'region.optionRu': { en: 'Russia', ua: 'Росія', ru: 'Россия' },
 
-  'configPaste.heading': { en: '3. Base config.json', ua: '3. Базовий config.json', ru: '3. Базовый config.json' },
+  'multiplex.heading': { en: '3. Multiplexing (mux)', ua: '3. Мультиплексування (mux)', ru: '3. Мультиплексирование (mux)' },
+  'multiplex.help': {
+    en: "Bundles proxy connections over fewer physical TLS sessions — useful if your ISP caps concurrent TLS connections to one host. Enabling it removes the proxy outbound's flow (xtls-rprx-vision), since Vision and mux can't be combined.",
+    ua: 'Об’єднує проксі-з’єднання в меншу кількість фізичних TLS-сесій — корисно, якщо провайдер обмежує кількість одночасних TLS-з’єднань до одного хоста. Вмикання прибирає flow (xtls-rprx-vision) з проксі-outbound, оскільки Vision і mux не можна поєднувати.',
+    ru: 'Объединяет прокси-соединения в меньшее число физических TLS-сессий — полезно, если провайдер ограничивает количество одновременных TLS-соединений к одному хосту. Включение убирает flow (xtls-rprx-vision) с proxy-outbound, поскольку Vision и mux нельзя сочетать.',
+  },
+  'multiplex.enable': { en: 'Enable multiplexing', ua: 'Увімкнути мультиплексування', ru: 'Включить мультиплексирование' },
+  'multiplex.protocol': { en: 'Protocol', ua: 'Протокол', ru: 'Протокол' },
+  'multiplex.maxConnections': { en: 'Max connections', ua: 'Макс. з’єднань', ru: 'Макс. соединений' },
+  'multiplex.minStreams': { en: 'Min streams', ua: 'Мін. потоків', ru: 'Мин. потоков' },
+  'multiplex.padding': { en: 'Padding', ua: 'Padding', ru: 'Padding' },
+
+  'configPaste.heading': { en: '4. Base config.json', ua: '4. Базовий config.json', ru: '4. Базовый config.json' },
   'configPaste.helpPart1': {
     en: 'Paste your existing sing-box client config, or start from the default template below and edit it directly. Only the ',
     ua: 'Вставте наявний клієнтський конфіг sing-box або почніть із шаблону за замовчуванням нижче та редагуйте його напряму. Змінюється лише секція ',
@@ -87,7 +99,7 @@ const DICT = {
   'ruleSets.urlPlaceholder': { en: 'https://.../custom.srs', ua: 'https://.../custom.srs', ru: 'https://.../custom.srs' },
   'ruleSets.removeAria': { en: 'Remove {tag}', ua: 'Видалити {tag}', ru: 'Удалить {tag}' },
 
-  'ruleList.heading': { en: '4. Routing rules', ua: '4. Правила маршрутизації', ru: '4. Правила маршрутизации' },
+  'ruleList.heading': { en: '5. Routing rules', ua: '5. Правила маршрутизації', ru: '5. Правила маршрутизации' },
   'ruleList.help': {
     en: 'Matched top to bottom — the first matching rule wins. Drag the handle to reorder.',
     ua: 'Перевіряються згори вниз — перемагає перше правило, що збіглося. Перетягніть маркер, щоб змінити порядок.',
@@ -113,7 +125,7 @@ const DICT = {
   },
   'condition.commaSeparated': { en: '(comma-separated)', ua: '(через кому)', ru: '(через запятую)' },
 
-  'defaultOutbound.heading': { en: '5. Default outbound', ua: '5. Outbound за замовчуванням', ru: '5. Outbound по умолчанию' },
+  'defaultOutbound.heading': { en: '6. Default outbound', ua: '6. Outbound за замовчуванням', ru: '6. Outbound по умолчанию' },
   'defaultOutbound.help': {
     en: "Where traffic goes when no rule above matches. Pick one — there's no implicit default.",
     ua: 'Куди йде трафік, якщо жодне правило вище не збіглося. Оберіть одне — неявного значення за замовчуванням немає.',
@@ -123,7 +135,7 @@ const DICT = {
   'common.direct': { en: 'Direct', ua: 'Напряму', ru: 'Напрямую' },
   'common.proxy': { en: 'Proxy', ua: 'Проксі', ru: 'Прокси' },
 
-  'output.heading': { en: '6. Output', ua: '6. Результат', ru: '6. Результат' },
+  'output.heading': { en: '7. Output', ua: '7. Результат', ru: '7. Результат' },
   'output.emptyState': {
     en: 'Paste a valid config above to see the output.',
     ua: 'Вставте коректний конфіг вище, щоб побачити результат.',

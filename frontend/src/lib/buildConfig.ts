@@ -2,6 +2,7 @@ import type { SingBoxConfig } from '../types/singbox'
 import type { Action, Condition, ConditionType, Rule, RuleSetDef } from '../types/rules'
 import type { VlessClient } from '../types/clients'
 import type { Region } from '../types/region'
+import type { MultiplexSettings } from '../types/multiplex'
 import { buildRegionConfig } from './regionConfig'
 
 export interface BuildConfigInput {
@@ -14,6 +15,7 @@ export interface BuildConfigInput {
   proxyOutboundIndex: number | null
   selectedClient: VlessClient | null
   region: Region
+  multiplex: MultiplexSettings
 }
 
 /** Fields we control on the injected VLESS outbound; everything else on it is left as-is. */
@@ -36,6 +38,23 @@ function injectClientIntoOutbound(outbound: Record<string, unknown>, client: Vle
 
   tls.reality = reality
   outbound.tls = tls
+}
+
+/** Vision's flow control and mux multiplexing can't be combined, so enabling
+ * mux drops any flow set on the outbound (e.g. the default xtls-rprx-vision). */
+function applyMultiplexToOutbound(outbound: Record<string, unknown>, multiplex: MultiplexSettings): void {
+  if (!multiplex.enabled) {
+    delete outbound.multiplex
+    return
+  }
+  delete outbound.flow
+  outbound.multiplex = {
+    enabled: true,
+    protocol: multiplex.protocol,
+    max_connections: multiplex.maxConnections,
+    min_streams: multiplex.minStreams,
+    padding: multiplex.padding,
+  }
 }
 
 function mergeConditionValues(conditions: Condition[], type: ConditionType): string[] {
@@ -110,12 +129,16 @@ function buildRule(rule: Rule, ruleSets: RuleSetDef[], directTag: string, proxyT
 export function buildOutputConfig(input: BuildConfigInput): SingBoxConfig {
   const config = structuredClone(input.config)
 
-  if (input.selectedClient && input.proxyOutboundIndex !== null) {
+  if (input.proxyOutboundIndex !== null) {
     const outbounds = config.outbounds
     if (Array.isArray(outbounds)) {
       const target = outbounds[input.proxyOutboundIndex]
       if (target && typeof target === 'object') {
-        injectClientIntoOutbound(target as Record<string, unknown>, input.selectedClient)
+        const outbound = target as Record<string, unknown>
+        if (input.selectedClient) {
+          injectClientIntoOutbound(outbound, input.selectedClient)
+        }
+        applyMultiplexToOutbound(outbound, input.multiplex)
       }
     }
   }
