@@ -308,6 +308,28 @@ implemented from for the full ground-truth investigation):
   falsy — which `config.json.j2` already correctly treats as "omit from
   xray's config", while a truly *missing* key (rows never touched by
   either workflow) still gets the backward-compat default.
+  **Second bug fixed, same symptom:** even after the fix above, an empty
+  flow still silently became `xtls-rprx-vision` in the live xray config.
+  Root cause was one layer further out: `add-vless-client.yml`/
+  `update-vless-client.yml`'s `flow` input declared `default:
+  "xtls-rprx-vision"` (`required: false`) — and GitHub Actions'
+  `workflow_dispatch` REST API silently substitutes an input's declared
+  default whenever the dispatched value is an empty string, treating ""
+  as "not provided" rather than as a real value (confirmed for `type:
+  choice` inputs in [community discussion #172518](
+  https://github.com/orgs/community/discussions/172518); empirically
+  confirmed here to also apply to plain `type: string`). So this repo's
+  backend was correctly sending `"flow": ""` in the dispatch payload the
+  whole time (verified via the actual `docker logs`/DB state), but GitHub
+  itself replaced it with the default before the workflow ever saw it —
+  every dispatched run's `${{ inputs.flow }}` came out as
+  `xtls-rprx-vision` regardless of what was actually sent. Fixed by
+  dropping `default:` and making `flow` `required: true` on both
+  workflows, mirroring the same fix already applied to this repo's own
+  `Form(...)` parameters for the identical FastAPI quirk (see "Per-client
+  `flow`" implementation notes) — this class of bug (a framework silently
+  treating a legitimate empty string as "absent" and substituting a
+  default) has now hit both layers of this exact feature.
 - **Editing a client** (`POST /admin/clients/{id}/edit`, email + flow only —
   the UUID itself is never editable through this route, that would be
   credential rotation, a separate concern not implemented here) reuses the
