@@ -4,9 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   {% set in_flight = clients | selectattr('status', 'in', ['pending', 'dispatched', 'pending_removal', 'removing', 'pending_update', 'updating']) | rejectattr('github_run_status', 'equalto', 'completed') | list %}
-  {% if in_flight %}
-  <meta http-equiv="refresh" content="5">
-  {% endif %}
   <title>vless-config-generator — Admin</title>
   <style>
     :root {
@@ -92,6 +89,7 @@
       cursor: pointer;
     }
     button:hover { border-color: var(--accent); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
     button.primary { background: var(--accent); border-color: var(--accent); color: #06121f; font-weight: 600; }
     button.danger { color: var(--danger); border-color: var(--danger); }
     form.add-client { display: flex; gap: 0.5rem; flex-wrap: wrap; }
@@ -123,11 +121,11 @@
       <tbody>
         {% for client in clients %}
         {% set editable = client.status in ("pending", "dispatched") %}
-        <tr>
+        <tr data-client-id="{{ client.id }}">
           <td>
             {% if editable %}
             <form id="edit-{{ client.id }}" method="post" action="/admin/clients/{{ client.id }}/edit"></form>
-            <input type="email" name="email" value="{{ client.email }}" form="edit-{{ client.id }}" required>
+            <input type="email" name="email" value="{{ client.email }}" data-initial="{{ client.email }}" form="edit-{{ client.id }}" required>
             {% else %}
             {{ client.email }}
             {% endif %}
@@ -135,7 +133,7 @@
           <td><code>{{ client.client_uuid }}</code></td>
           <td>
             {% if editable %}
-            <select name="flow" form="edit-{{ client.id }}">
+            <select name="flow" data-initial="{{ client.flow }}" form="edit-{{ client.id }}">
               <option value="xtls-rprx-vision" {{ "selected" if client.flow == "xtls-rprx-vision" }}>xtls-rprx-vision</option>
               <option value="" {{ "selected" if not client.flow }}>empty (no flow)</option>
             </select>
@@ -143,21 +141,12 @@
             {{ client.flow if client.flow else "&mdash;"|safe }}
             {% endif %}
           </td>
-          <td class="status-{{ client.status }}">{{ client.status }}</td>
-          <td>
-            {% if client.status not in ("dispatched", "removing", "updating") %}
-              &mdash;
-            {% elif client.github_run_id is none %}
-              <span>looking up run&hellip;</span>
-            {% else %}
-              {% set run_state = client.github_run_conclusion if client.github_run_status == "completed" else client.github_run_status %}
-              <a class="run-{{ run_state }}" href="https://github.com/{{ github_repo }}/actions/runs/{{ client.github_run_id }}" target="_blank" rel="noopener">{{ run_state }}</a>
-            {% endif %}
-          </td>
+          <td class="js-status status-{{ client.status }}">{{ client.status }}</td>
+          <td class="js-run">{{ run_cell_html(client, github_repo) | safe }}</td>
           <td>{{ client.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
           <td class="actions">
             {% if editable %}
-            <button type="submit" form="edit-{{ client.id }}">Save</button>
+            <button type="submit" form="edit-{{ client.id }}" class="js-save">Save</button>
             {% endif %}
             {% if client.status in ("pending", "pending_removal", "pending_update") or client.github_run_conclusion == "failure" %}
             <form method="post" action="/admin/clients/{{ client.id }}/retry">
@@ -222,12 +211,84 @@
         combined.
       </li>
       <li>
-        This page <strong>auto-refreshes every 5s</strong> while any
-        client has an add/remove/edit action in flight.
+        Status/workflow-run columns <strong>refresh every 5s</strong> in
+        place (no page reload) while any client has an add/remove/edit
+        action in flight, so it never interrupts anything you're typing.
+      </li>
+      <li>
+        <strong>Save</strong> stays disabled until you actually change
+        that row's email or flow.
       </li>
     </ul>
   </div>
 
 </div>
+<script>
+  (function () {
+    function fieldsForForm(formId) {
+      return Array.from(document.querySelectorAll('[form="' + formId + '"]'))
+        .filter(function (el) { return el.tagName !== 'BUTTON'; });
+    }
+
+    function updateSaveState(formId) {
+      var saveBtn = document.querySelector('button.js-save[form="' + formId + '"]');
+      if (!saveBtn) return;
+      var changed = fieldsForForm(formId).some(function (el) {
+        return el.value !== el.dataset.initial;
+      });
+      saveBtn.disabled = !changed;
+    }
+
+    document.querySelectorAll('form[id^="edit-"]').forEach(function (form) {
+      updateSaveState(form.id);
+    });
+
+    ['input', 'change'].forEach(function (eventName) {
+      document.addEventListener(eventName, function (event) {
+        var formId = event.target.getAttribute && event.target.getAttribute('form');
+        if (formId && formId.indexOf('edit-') === 0) updateSaveState(formId);
+      });
+    });
+
+    var pollTimer = null;
+
+    function applyStatus(data) {
+      var seenIds = data.clients.map(function (c) { return c.id; });
+      document.querySelectorAll('tr[data-client-id]').forEach(function (row) {
+        if (seenIds.indexOf(row.dataset.clientId) === -1) row.remove();
+      });
+
+      var stillInFlight = false;
+      data.clients.forEach(function (client) {
+        if (client.in_flight) stillInFlight = true;
+        var row = document.querySelector('tr[data-client-id="' + client.id + '"]');
+        if (!row) return;
+        var statusCell = row.querySelector('.js-status');
+        if (statusCell) {
+          statusCell.textContent = client.status;
+          statusCell.className = 'js-status status-' + client.status;
+        }
+        var runCell = row.querySelector('.js-run');
+        if (runCell) runCell.innerHTML = client.run_html;
+      });
+
+      if (!stillInFlight && pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    function poll() {
+      fetch('/admin/clients/status')
+        .then(function (r) { return r.json(); })
+        .then(applyStatus)
+        .catch(function () {});
+    }
+
+    if ({{ 'true' if in_flight else 'false' }}) {
+      pollTimer = setInterval(poll, 5000);
+    }
+  })();
+</script>
 </body>
 </html>

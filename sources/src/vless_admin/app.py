@@ -11,6 +11,7 @@ import httpx
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+from markupsafe import escape
 
 from .auth import (
     get_admin_from_session,
@@ -61,6 +62,47 @@ config = AppConfig.from_yaml(Path(os.getenv("CONFIG_PATH", "config.yaml")))
 templates = Jinja2Templates(directory=_ROOT / "templates")
 _cache: Cache | None = None
 _http: httpx.AsyncClient | None = None
+
+_IN_FLIGHT_STATUSES = {
+    "pending",
+    "dispatched",
+    "pending_removal",
+    "removing",
+    "pending_update",
+    "updating",
+}
+
+
+def _is_in_flight(client) -> bool:
+    return (
+        client.status in _IN_FLIGHT_STATUSES and client.github_run_status != "completed"
+    )
+
+
+def _run_cell_html(client, github_repo: str) -> str:
+    """Render the "Workflow run" cell's inner HTML for one client.
+
+    Shared between the dashboard template and the `/admin/clients/status`
+    polling endpoint (see `admin_clients_status`) so a JS-driven refresh of
+    that cell always produces the exact same markup a full page load would.
+    """
+    if client.status not in ("dispatched", "removing", "updating"):
+        return "&mdash;"
+    if client.github_run_id is None:
+        return "<span>looking up run&hellip;</span>"
+    run_state = escape(
+        client.github_run_conclusion
+        if client.github_run_status == "completed"
+        else client.github_run_status
+    )
+    return (
+        f'<a class="run-{run_state}" '
+        f'href="https://github.com/{escape(github_repo)}/actions/runs/{client.github_run_id}" '
+        f'target="_blank" rel="noopener">{run_state}</a>'
+    )
+
+
+templates.env.globals["run_cell_html"] = _run_cell_html
 
 
 @asynccontextmanager
@@ -331,6 +373,30 @@ async def admin_dashboard(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         "admin/dashboard.html",
         {"request": request, "clients": clients, "github_repo": config.github_repo},
+    )
+
+
+@app.get("/admin/clients/status")
+async def admin_clients_status() -> JSONResponse:
+    """JSON status feed the dashboard's JS polls instead of reloading the page.
+
+    Runs the same reconciliation as the dashboard's own GET (so statuses
+    still advance, deleted clients still disappear) without re-rendering
+    the whole page — keeps in-progress edits/scroll position/etc. intact.
+    """
+    clients = await _refresh_client_runs(await client_list())
+    return JSONResponse(
+        {
+            "clients": [
+                {
+                    "id": str(client.id),
+                    "status": client.status,
+                    "run_html": _run_cell_html(client, config.github_repo),
+                    "in_flight": _is_in_flight(client),
+                }
+                for client in clients
+            ]
+        }
     )
 
 
