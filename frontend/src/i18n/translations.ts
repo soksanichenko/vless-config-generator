@@ -31,6 +31,12 @@ const DICT = {
     ru: ' — эти данные будут подставлены в proxy-outbound.',
   },
   'client.logout': { en: 'Log out', ua: 'Вийти', ru: 'Выйти' },
+  'client.pickerLabel': {
+    en: 'Credential',
+    ua: 'Обліковий запис',
+    ru: 'Учётные данные',
+  },
+  'client.pickerNoFlow': { en: 'empty flow', ua: 'без flow', ru: 'без flow' },
 
   'region.heading': { en: '2. Region', ua: '2. Регіон', ru: '2. Регион' },
   'region.help': {

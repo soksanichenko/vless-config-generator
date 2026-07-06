@@ -13,7 +13,7 @@ import { DEFAULT_CONFIG_TEXT } from './lib/defaultConfig'
 import { listOutbounds } from './types/singbox'
 import type { SingBoxConfig } from './types/singbox'
 import type { Action, Rule, RuleSetDef } from './types/rules'
-import type { ClientResponse, VlessClient } from './types/clients'
+import type { ClientsResponse, VlessClient } from './types/clients'
 import type { Region } from './types/region'
 import { DEFAULT_MULTIPLEX_SETTINGS } from './types/multiplex'
 import type { MultiplexSettings as MultiplexSettingsValue } from './types/multiplex'
@@ -21,8 +21,13 @@ import { useLang } from './i18n/LangContext'
 
 export function App() {
   const { lang, setLang, t } = useLang()
-  const [client, setClient] = useState<VlessClient | null>(null)
+  const [clients, setClients] = useState<VlessClient[]>([])
+  const [selectedUuid, setSelectedUuid] = useState<string | null>(null)
   const [clientError, setClientError] = useState<string | null>(null)
+  const client = useMemo(
+    () => clients.find((candidate) => candidate.uuid === selectedUuid) ?? null,
+    [clients, selectedUuid],
+  )
 
   const [configText, setConfigText] = useState(DEFAULT_CONFIG_TEXT)
   const [parsedConfig, setParsedConfig] = useState<SingBoxConfig | null>(null)
@@ -39,12 +44,15 @@ export function App() {
   const [multiplex, setMultiplex] = useState<MultiplexSettingsValue>(DEFAULT_MULTIPLEX_SETTINGS)
 
   useEffect(() => {
-    fetch('/api/client')
+    fetch('/api/clients')
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        return response.json() as Promise<ClientResponse>
+        return response.json() as Promise<ClientsResponse>
       })
-      .then((data) => setClient(data.client))
+      .then((data) => {
+        setClients(data.clients)
+        setSelectedUuid(data.clients[0]?.uuid ?? null)
+      })
       .catch((error: unknown) => setClientError(error instanceof Error ? error.message : String(error)))
   }, [])
 
@@ -129,7 +137,12 @@ export function App() {
         <LanguageSwitcher value={lang} onChange={setLang} />
       </div>
 
-      <ClientInfo client={client} loadError={clientError} />
+      <ClientInfo
+        clients={clients}
+        selectedUuid={selectedUuid}
+        onSelect={setSelectedUuid}
+        loadError={clientError}
+      />
 
       <RegionSelector value={region} onChange={setRegion} />
 

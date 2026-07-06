@@ -67,11 +67,11 @@ async def client_get(client_id: UUID) -> Client | None:
         return result.scalar_one_or_none()
 
 
-async def client_get_by_email(email: str) -> Client | None:
-    """Return the client row for an email, or None."""
+async def client_list_by_email(email: str) -> list[Client]:
+    """Return every client row for an email (an "account" can hold several)."""
     async with get_session() as session:
         result = await session.execute(select(Client).where(Client.email == email))
-        return result.scalar_one_or_none()
+        return list(result.scalars())
 
 
 async def client_mark_dispatched(client_id: UUID) -> None:

@@ -6,8 +6,9 @@ export interface VlessClient {
   publicKey: string
   shortId: string
   serverName: string
+  flow: string
 }
 
-export interface ClientResponse {
-  client: VlessClient
+export interface ClientsResponse {
+  clients: VlessClient[]
 }

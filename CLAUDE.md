@@ -86,7 +86,7 @@ npm install
 npm run dev
 ```
 
-Without the backend running locally, `/api/client` and
+Without the backend running locally, `/api/clients` and
 `/api/ruleset-categories` 404 — the client info card shows a load-error
 banner and the rule-set category input falls back to a bundled snapshot
 list; the rest of the UI still works.

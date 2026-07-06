@@ -15,7 +15,7 @@ from markupsafe import escape
 
 from .auth import (
     get_admin_from_session,
-    get_client_from_session,
+    get_clients_from_session,
     verify_admin_login,
     verify_client_login,
 )
@@ -25,7 +25,6 @@ from .db import (
     client_create,
     client_delete,
     client_get,
-    client_get_by_email,
     client_list,
     client_mark_dispatched,
     client_mark_pending_removal,
@@ -282,23 +281,27 @@ async def logout(request: Request) -> Response:
 # ── Routes: frontend API ──────────────────────────────────────────────────────
 
 
-@app.get("/api/client")
-async def api_client(request: Request) -> JSONResponse:
-    """Data for the client that logged in — no picking another client's credentials."""
-    client = await get_client_from_session(request.cookies.get(SITE_COOKIE_NAME))
-    if client is None:
+@app.get("/api/clients")
+async def api_clients(request: Request) -> JSONResponse:
+    """Every credential belonging to the logged-in account (see auth.py)."""
+    clients = await get_clients_from_session(request.cookies.get(SITE_COOKIE_NAME))
+    if not clients:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return JSONResponse(
         {
-            "client": {
-                "email": client.email,
-                "uuid": str(client.client_uuid),
-                "server": config.vless_server,
-                "serverPort": config.vless_server_port,
-                "publicKey": config.vless_public_key,
-                "shortId": config.vless_short_id,
-                "serverName": config.vless_server_name,
-            }
+            "clients": [
+                {
+                    "email": client.email,
+                    "uuid": str(client.client_uuid),
+                    "server": config.vless_server,
+                    "serverPort": config.vless_server_port,
+                    "publicKey": config.vless_public_key,
+                    "shortId": config.vless_short_id,
+                    "serverName": config.vless_server_name,
+                    "flow": client.flow,
+                }
+                for client in clients
+            ]
         }
     )
 
@@ -322,8 +325,8 @@ async def api_ruleset_categories(kind: str) -> JSONResponse:
 @app.get("/auth")
 async def auth(request: Request) -> Response:
     """nginx `auth_request` target for the main site: 200/401 on the site session cookie."""
-    client = await get_client_from_session(request.cookies.get(SITE_COOKIE_NAME))
-    return Response(status_code=200 if client is not None else 401)
+    clients = await get_clients_from_session(request.cookies.get(SITE_COOKIE_NAME))
+    return Response(status_code=200 if clients else 401)
 
 
 @app.get("/admin/auth")
@@ -444,16 +447,13 @@ async def admin_edit_client(
     the new values so the next "Retry" of the add uses them. Otherwise,
     status flips to "pending_update" immediately (not a security revocation,
     so site login stays allowed — see `_LOGIN_ALLOWED_STATUSES` in auth.py),
-    then to "updating" once the dispatch call actually succeeds.
+    then to "updating" once the dispatch call actually succeeds. `email`
+    isn't required to be unique (see `models_db.Client`), so no collision
+    check against other rows is needed here.
     """
     client = await client_get(client_id)
     if client is None:
         raise HTTPException(status_code=404, detail="Client not found")
-    existing = await client_get_by_email(email)
-    if existing is not None and existing.id != client.id:
-        raise HTTPException(
-            status_code=409, detail="Email already in use by another client"
-        )
     if client.status == "pending":
         await client_update(client.id, email, flow)
     else:

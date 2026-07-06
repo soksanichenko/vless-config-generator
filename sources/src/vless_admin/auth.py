@@ -9,7 +9,7 @@ import hmac
 import logging
 
 from .config import AppConfig
-from .db import client_get_by_email
+from .db import client_list_by_email
 from .models_db import Client
 from .sessions import resolve_session
 
@@ -24,26 +24,39 @@ _LOGIN_ALLOWED_STATUSES = {"dispatched", "pending_update", "updating"}
 
 
 async def verify_client_login(email: str, client_uuid: str) -> Client | None:
-    """Return the Client if `email`/`client_uuid` is a valid, provisioned login."""
+    """Return the Client if `email`/`client_uuid` is a valid, provisioned login.
+
+    `email` identifies an *account*, which may hold several credentials
+    (see `models_db.Client`); any one of them proves ownership of the
+    account, so every candidate for that email is checked in constant time
+    against the supplied uuid.
+    """
     if not email or not client_uuid:
         return None
-    client = await client_get_by_email(email)
-    if client is None or client.status not in _LOGIN_ALLOWED_STATUSES:
-        return None
-    if not hmac.compare_digest(str(client.client_uuid), client_uuid):
-        return None
-    return client
+    for candidate in await client_list_by_email(email):
+        if candidate.status not in _LOGIN_ALLOWED_STATUSES:
+            continue
+        if hmac.compare_digest(str(candidate.client_uuid), client_uuid):
+            return candidate
+    return None
 
 
-async def get_client_from_session(cookie_value: str | None) -> Client | None:
-    """Return the Client for a valid `site_session` cookie, or None."""
+async def get_clients_from_session(cookie_value: str | None) -> list[Client]:
+    """Return every still-valid Client for a `site_session` cookie's account.
+
+    A session's subject is the account email, not one specific credential —
+    logging in with any one of the account's credentials grants visibility
+    into all of them (see `models_db.Client`), which is what lets the
+    frontend offer a picker between them.
+    """
     email = await resolve_session(cookie_value, kind="site")
     if email is None:
-        return None
-    client = await client_get_by_email(email)
-    if client is None or client.status not in _LOGIN_ALLOWED_STATUSES:
-        return None
-    return client
+        return []
+    return [
+        candidate
+        for candidate in await client_list_by_email(email)
+        if candidate.status in _LOGIN_ALLOWED_STATUSES
+    ]
 
 
 def verify_admin_login(username: str, password: str, config: AppConfig) -> bool:

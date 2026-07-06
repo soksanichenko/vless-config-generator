@@ -15,6 +15,13 @@ class Client(Base):
     Only `email` and `client_uuid` are per-client; the other Reality/server
     parameters (server, port, public key, short id) are shared across every
     client and live in `AppConfig`, not here.
+
+    `email` is deliberately *not* unique: one person can hold multiple
+    credentials under the same email (e.g. one with `flow` set for Vision,
+    another with an empty `flow` for a sing-box config using multiplex).
+    `email` identifies the *account* a site login belongs to; `client_uuid`
+    (still unique) identifies which specific credential was used to prove
+    ownership of that account — see `auth.py`'s `verify_client_login`.
     """
 
     __tablename__ = "clients"
@@ -24,7 +31,7 @@ class Client(Base):
         primary_key=True,
         server_default=text("gen_random_uuid()"),
     )
-    email: MappedColumn[str] = mapped_column(String, nullable=False, unique=True)
+    email: MappedColumn[str] = mapped_column(String, nullable=False)
     client_uuid: MappedColumn[UUID] = mapped_column(
         UUID(as_uuid=True), nullable=False, unique=True
     )

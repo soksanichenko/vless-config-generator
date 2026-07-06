@@ -5,17 +5,23 @@ Browser-based sing-box routing-rule editor for VLESS clients on zelgray.work
 ## Features
 
 Not a from-scratch config builder — paste an existing sing-box `config.json`
-and only its `route`/`dns` sections (plus the picked VLESS outbound's
-credentials) get changed. All config editing/output generation still runs
-entirely in the browser; a small FastAPI backend (`sources/`) now provides
-client data, rule-set categories, site login, and the admin panel described
+and edit its routing (`route`/`dns`, region-aware profiles, multiplexing)
+plus the picked VLESS outbound's credentials; everything else in the
+pasted config passes through untouched, and all editing/output generation
+runs entirely in the browser. A FastAPI backend (`sources/`) provides your
+account's VLESS credentials (one email can hold several — pick between
+them if so), rule-set category autocomplete, site login, and an admin
+panel to add/edit/delete VLESS clients on the real xray server, described
 below.
 
 - **Default config template** — loaded up front so there's always something
   to edit and export, even before pasting your own config
 - **Client credentials** — pulls VLESS credentials (UUID, Reality public
-  key, short ID, SNI) from the backend's `/api/client` for whichever client
-  you logged in as — no picker, no other client's credentials ever exposed
+  key, short ID, SNI) from the backend's `/api/clients` for the account you
+  logged in as; one email can hold several credentials (e.g. one with
+  `flow: xtls-rprx-vision`, another with an empty flow for a multiplex
+  config), in which case a dropdown picks between them — never any other
+  account's credentials
 - **Admin panel** (`/admin/`) — add, edit, or delete VLESS clients from a
   browser instead of hand-editing `infra`'s config. Adding/editing a client
   picks its xray `flow` from a dropdown (`xtls-rprx-vision` / empty — pick
@@ -110,7 +116,7 @@ npm install
 npm run dev
 ```
 
-Without the backend running locally, `/api/client` and
+Without the backend running locally, `/api/clients` and
 `/api/ruleset-categories` 404 — the client info card shows a load-error
 banner and the rule-set category input falls back to its bundled snapshot
 list; the rest of the UI still works.

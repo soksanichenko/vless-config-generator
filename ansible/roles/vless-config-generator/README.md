@@ -12,9 +12,10 @@ Browser-based sing-box routing-rule editor for VLESS clients on zelgray.work
 3. Builds the `vless-config-generator-api` Docker image in place from
    `sources/` (rsynced to the controller-local data dir) and deploys it as a
    container on the shared Docker network — a FastAPI backend that:
-   - serves `/api/client` (the logged-in client's own credentials — no
-     other client's data is ever returned) and `/api/ruleset-categories`
-     (geosite/geoip category autocomplete, Redis-cached) to the frontend
+   - serves `/api/clients` (every credential belonging to the logged-in
+     account — one email can hold several, never another account's data)
+     and `/api/ruleset-categories` (geosite/geoip category autocomplete,
+     Redis-cached) to the frontend
    - serves `/login` + `/logout` (site login form, email + VLESS UUID) and
      `/auth`, the nginx `auth_request` target that gates the main site
      against the resulting session cookie
@@ -99,7 +100,7 @@ ansible-playbook -i inventories/zelgray.work playbooks/deploy.yml
   actual `ansible-playbook` deploy for xray. All three workflows are a
   prerequisite documented in `DESIGN.md`, not part of this role.
 - The `clients.json` static file and its Jinja2 template are gone — the
-  frontend now fetches `/api/client` from the live API instead.
+  frontend now fetches `/api/clients` from the live API instead.
 - `/admin/` is no longer gated by an nginx-generated htpasswd file — the
   admin credential (Infisical secrets `vless-config-generator-admin-username`
   and `vless-config-generator-admin-password`) is templated straight into

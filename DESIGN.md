@@ -69,6 +69,27 @@ source of truth for the *shared* Reality parameters (`vless-public-key`,
 `vless-sid`), templated into the backend's `config.yaml` the same way
 `clients.json.j2` used to read them.
 
+**Superseded again — multi-credential accounts:** the "no picker" design
+above assumed one client meant one person meant one credential. Real usage
+needs one person holding multiple credentials under the same email — e.g.
+one with `flow: xtls-rprx-vision` for a plain Vision config, another with
+an empty `flow` for a sing-box config using multiplex (see "Multiplexing
+(mux)" above — xray can't reconcile Vision and mux on a single credential,
+so switching between them needs two distinct UUIDs). `email` was the thing
+enforcing "one client" (a unique constraint); now an *account* (identified
+by `email`) can hold several *credentials* (rows sharing that email, each
+still with a unique `client_uuid` — migration `4e8b1a6f3c9d` drops the
+column's unique constraint). `GET /api/clients` is plural again, but scoped
+this time, not a repeat of the "every dispatched client on the server" bug
+two paragraphs up: it returns only the credentials belonging to the
+logged-in *account*, and login itself checks the (email, uuid) pair rather
+than "just email" (`auth.py`'s `verify_client_login`/
+`get_clients_from_session`) — knowing any one of an account's own UUIDs
+proves ownership of that account, not of anyone else's. The frontend
+(`ClientInfo.tsx`) only shows a picker when more than one credential comes
+back; with the common case of exactly one, behavior is unchanged from
+before.
+
 **Connect address vs. Reality SNI split:** `zelgray.work` is proxied through
 Cloudflare, so it can't be used as the actual VLESS dial target — TCP/TLS
 traffic to it hits Cloudflare's edge instead of the origin xray server,
@@ -365,10 +386,12 @@ implemented from for the full ground-truth investigation):
   `client.flow` off the current row. Retry's branch logic was extended to a
   third case (`updating`/`pending_update` → re-dispatch the update
   workflow) so retrying a failed edit can never re-add or re-remove a
-  client by mistake. A duplicate-email edit is rejected with 409 before
-  any DB write or dispatch (`client_get_by_email` pre-check) — the `clients`
-  table's `email` column is unique, and letting that surface as a raw
-  constraint violation would be a worse admin experience than a clear error.
+  client by mistake. Editing a client's email to match another existing
+  row is allowed and does **not** 409 — `email` isn't unique (see "Client
+  credentials" above, "Superseded again — multi-credential accounts"),
+  so this is now indistinguishable from intentionally adding a second
+  credential to the same account by editing an existing row's email to
+  match it.
 - **Prerequisite in `infra`, now implemented there** (separate repo, own
   history): `xray.vless.clients` was restructured to read from one
   JSON-array Infisical secret (`clients: "{{ infisical_secrets.secrets
@@ -540,9 +563,10 @@ cookie-session based, both enforced via nginx `auth_request`:
   → `removing` → hard-delete on confirmed success, and editing's
   `pending_update` → `updating` → back to `dispatched` without revoking
   login — was exercised locally against a real Postgres (including the
-  duplicate-email 409 and the "pending" no-dispatch edit path), with the
-  actual GitHub dispatch call itself the only unverified leg in all three —
-  same caveat the add flow always had.
+  "pending" no-dispatch edit path and multi-credential login by uuid, see
+  "Client credentials" above), with the actual GitHub dispatch call itself
+  the only unverified leg in all three — same caveat the add flow always
+  had.
 - The session-cookie login (see "Admin panel" above) needs a new Infisical
   secret, `vless-config-generator-session-secret` (a random string, e.g.
   `openssl rand -hex 32`), not yet created — without it `session_secret_key`
@@ -557,7 +581,8 @@ cookie-session based, both enforced via nginx `auth_request`:
 - Frontend: Vite + React + TypeScript in `frontend/`, no build-step-free
   vanilla JS after all — see `frontend/src/`. The logged-in client's own
   `server`/`server_port`/`uuid`/`tls.reality.public_key`/
-  `tls.reality.short_id`/`tls.server_name` (from `GET /api/client`) get
+  `tls.reality.short_id`/`tls.server_name` (from the selected credential in
+  `GET /api/clients`) get
   injected into the pasted config's chosen VLESS outbound; everything else
   in the pasted config passes through
   untouched. Rule builder supports every condition type from this doc,
@@ -611,7 +636,7 @@ cookie-session based, both enforced via nginx `auth_request`:
   `github_run_status`, `github_run_conclusion`, `created_at` — the shared
   Reality params live in `AppConfig`, not per-row; `Session` table:
   `session_id`, `kind`, `subject`, `expires_at`, `created_at`) + Redis
-  cache + Alembic migrations. Routes: `GET /api/client`,
+  cache + Alembic migrations. Routes: `GET /api/clients`,
   `GET /api/ruleset-categories`, `GET/POST /login`, `POST /logout`,
   `GET /auth` (nginx `auth_request` target for the site),
   `GET/POST /admin/login`, `POST /admin/logout`, `GET /admin/auth` (nginx
