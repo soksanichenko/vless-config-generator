@@ -103,6 +103,15 @@ def _run_cell_html(client, github_repo: str) -> str:
 
 templates.env.globals["run_cell_html"] = _run_cell_html
 
+_EDITABLE_STATUSES = {"pending", "dispatched"}
+_client_row_macro = templates.env.get_template(
+    "admin/_client_row.html"
+).module.client_row
+
+
+def _is_editable(client) -> bool:
+    return client.status in _EDITABLE_STATUSES
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -396,6 +405,8 @@ async def admin_clients_status() -> JSONResponse:
                     "status": client.status,
                     "run_html": _run_cell_html(client, config.github_repo),
                     "in_flight": _is_in_flight(client),
+                    "editable": _is_editable(client),
+                    "row_html": str(_client_row_macro(client, config.github_repo)),
                 }
                 for client in clients
             ]

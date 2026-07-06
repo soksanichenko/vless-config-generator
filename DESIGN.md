@@ -486,13 +486,34 @@ implemented from for the full ground-truth investigation):
   client" signal now; the run columns reset to unset on retry so a stale
   prior run's outcome doesn't linger, and a failed run's conclusion also
   surfaces the retry button (previously only `status != "dispatched"` did).
-  The dashboard template also self-refreshes every 5s (`<meta
-  http-equiv="refresh">`) whenever any client is mid-action (`pending`/
-  `dispatched`/`pending_removal`/`removing` without a completed run) — kept
-  simple (a plain meta-refresh, not a JS poller) to match the rest of this
-  page's lazy-refresh-on-load philosophy, and only rendered when something
-  is actually in flight so it doesn't keep reloading (and clearing the
-  add-client form) once everything's settled.
+  The dashboard also refreshes every 5s while any client is mid-action
+  (`pending`/`dispatched`/`pending_removal`/`removing`/`pending_update`/
+  `updating` without a completed run) — originally a plain `<meta
+  http-equiv="refresh">` (whole-page reload), superseded by a JS poller
+  hitting `GET /admin/clients/status` instead, since a full reload wiped
+  out anything being typed anywhere on the page (the add-client form, an
+  in-progress edit on an unrelated row), not just the row that actually
+  changed. Each client's row is rendered by a shared Jinja macro
+  (`admin/_client_row.html`'s `client_row`), called both from
+  `dashboard.html`'s normal template render and from the status endpoint
+  (via `app.py`'s `_client_row_macro`) — single source of truth for a
+  row's markup either way. Per poll tick, a row whose editable/read-only
+  state hasn't changed only gets its status/workflow-run cells patched in
+  place (`.js-status`/`.js-run`); a row whose editable state *has* changed
+  (e.g. an edit finishing flips it from read-only back to the email
+  input/flow select/Save button) gets fully replaced with fresh
+  `row_html` from the poll response — safe to do in that direction only,
+  since read-only → editable never has in-progress typing to lose, and
+  the reverse (editable → read-only, right after Save/Delete is
+  submitted) already happens via a full page reload, never mid-poll.
+  Polling stops once nothing in the response is still in flight.
+- Each row's Save button starts disabled and only enables once its email
+  or flow input actually differs from the value the row was rendered
+  with (`data-initial` on the input/select, compared on every `input`/
+  `change` event) — avoids a no-op submit when nothing was actually
+  changed. Delegated at the `document` level rather than per-row, so it
+  keeps working for rows the poller swaps in via fresh `row_html` without
+  needing to re-attach anything.
 
 ## Access control
 
@@ -632,16 +653,19 @@ cookie-session based, both enforced via nginx `auth_request`:
   the backend itself is unreachable.
 - Backend (`sources/`, package `vless_admin`) scaffolded 1:1 on
   `hotline-listing`'s pattern: FastAPI + SQLAlchemy async/Postgres (`Client`
-  table: `email`, `client_uuid`, `status`, `github_run_id`,
-  `github_run_status`, `github_run_conclusion`, `created_at` — the shared
-  Reality params live in `AppConfig`, not per-row; `Session` table:
-  `session_id`, `kind`, `subject`, `expires_at`, `created_at`) + Redis
-  cache + Alembic migrations. Routes: `GET /api/clients`,
-  `GET /api/ruleset-categories`, `GET/POST /login`, `POST /logout`,
-  `GET /auth` (nginx `auth_request` target for the site),
-  `GET/POST /admin/login`, `POST /admin/logout`, `GET /admin/auth` (nginx
-  `auth_request` target for `/admin/`), `GET /admin/` + `POST /admin/clients`
-  + `POST /admin/clients/{id}/retry` + `POST /admin/clients/{id}/edit`
+  table: `email` (not unique — an account can hold several credentials,
+  see "Client credentials" above), `client_uuid` (unique), `flow`,
+  `status`, `github_run_id`, `github_run_status`, `github_run_conclusion`,
+  `action_dispatched_at`, `created_at` — the shared Reality params live in
+  `AppConfig`, not per-row; `Session` table: `session_id`, `kind`,
+  `subject`, `expires_at`, `created_at`) + Redis cache + Alembic
+  migrations. Routes: `GET /api/clients`, `GET /api/ruleset-categories`,
+  `GET/POST /login`, `POST /logout`, `GET /auth` (nginx `auth_request`
+  target for the site), `GET/POST /admin/login`, `POST /admin/logout`,
+  `GET /admin/auth` (nginx `auth_request` target for `/admin/`),
+  `GET /admin/` + `GET /admin/clients/status` (JS polling feed, see
+  "Admin panel" above) + `POST /admin/clients` + `POST
+  /admin/clients/{id}/retry` + `POST /admin/clients/{id}/edit`
   + `POST /admin/clients/{id}/delete` (server-rendered Jinja2,
   `sources/templates/`). Deployed via `community.docker.docker_container`
   on the shared `docker_network`, alongside the existing static-frontend

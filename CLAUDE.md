@@ -41,9 +41,9 @@ vless-config-generator/
 │   │       ├── auth.py              # login verification for site + admin
 │   │       ├── sessions.py          # signed session cookies, Postgres-backed
 │   │       ├── github_categories.py # geosite/geoip category fetch, Redis-cached
-│   │       ├── github_dispatch.py   # dispatches + tracks infra's add-vless-client.yml run
+│   │       ├── github_dispatch.py   # dispatches + tracks infra's add/update/remove-vless-client.yml runs
 │   │       └── alembic/             # migrations
-│   └── templates/                   # login.html, admin/login.html, admin/dashboard.html
+│   └── templates/                   # login.html, admin/login.html, admin/dashboard.html, admin/_client_row.html (row macro)
 ├── install_dependencies.sh
 ├── pyproject.toml
 ├── requirements.txt                 # `-r sources/src/requirements.txt` + Ansible tooling

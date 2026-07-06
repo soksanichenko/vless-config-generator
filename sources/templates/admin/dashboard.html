@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   {% set in_flight = clients | selectattr('status', 'in', ['pending', 'dispatched', 'pending_removal', 'removing', 'pending_update', 'updating']) | rejectattr('github_run_status', 'equalto', 'completed') | list %}
+  {% from "admin/_client_row.html" import client_row %}
   <title>vless-config-generator — Admin</title>
   <style>
     :root {
@@ -120,47 +121,7 @@
       </thead>
       <tbody>
         {% for client in clients %}
-        {% set editable = client.status in ("pending", "dispatched") %}
-        <tr data-client-id="{{ client.id }}">
-          <td>
-            {% if editable %}
-            <form id="edit-{{ client.id }}" method="post" action="/admin/clients/{{ client.id }}/edit"></form>
-            <input type="email" name="email" value="{{ client.email }}" data-initial="{{ client.email }}" form="edit-{{ client.id }}" required>
-            {% else %}
-            {{ client.email }}
-            {% endif %}
-          </td>
-          <td><code>{{ client.client_uuid }}</code></td>
-          <td>
-            {% if editable %}
-            <select name="flow" data-initial="{{ client.flow }}" form="edit-{{ client.id }}">
-              <option value="xtls-rprx-vision" {{ "selected" if client.flow == "xtls-rprx-vision" }}>xtls-rprx-vision</option>
-              <option value="" {{ "selected" if not client.flow }}>empty (no flow)</option>
-            </select>
-            {% else %}
-            {{ client.flow if client.flow else "&mdash;"|safe }}
-            {% endif %}
-          </td>
-          <td class="js-status status-{{ client.status }}">{{ client.status }}</td>
-          <td class="js-run">{{ run_cell_html(client, github_repo) | safe }}</td>
-          <td>{{ client.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-          <td class="actions">
-            {% if editable %}
-            <button type="submit" form="edit-{{ client.id }}" class="js-save">Save</button>
-            {% endif %}
-            {% if client.status in ("pending", "pending_removal", "pending_update") or client.github_run_conclusion == "failure" %}
-            <form method="post" action="/admin/clients/{{ client.id }}/retry">
-              <button type="submit">Retry</button>
-            </form>
-            {% endif %}
-            {% if client.status not in ("pending_removal", "removing") %}
-            <form method="post" action="/admin/clients/{{ client.id }}/delete"
-                  onsubmit="return confirm('Remove {{ client.email }}? This revokes their access immediately.');">
-              <button type="submit" class="danger">Delete</button>
-            </form>
-            {% endif %}
-          </td>
-        </tr>
+        {{ client_row(client, github_repo) }}
         {% endfor %}
         {% if not clients %}
         <tr><td colspan="7">No clients yet.</td></tr>
@@ -263,6 +224,25 @@
         if (client.in_flight) stillInFlight = true;
         var row = document.querySelector('tr[data-client-id="' + client.id + '"]');
         if (!row) return;
+
+        var wasEditable = row.dataset.editable === 'true';
+        if (client.editable !== wasEditable) {
+          // Editable/read-only cells (email input vs. plain text, Save
+          // button, etc.) only differ between these two states — safe to
+          // fully re-render, since the read-only -> editable direction
+          // (e.g. an edit finishing) never has in-progress typing to lose,
+          // and the reverse already happens via a full page reload right
+          // after Save/Delete is submitted, never mid-poll.
+          var template = document.createElement('tbody')
+          template.innerHTML = client.row_html
+          var newRow = template.querySelector('tr')
+          if (newRow) {
+            row.replaceWith(newRow)
+            updateSaveState('edit-' + client.id)
+          }
+          return
+        }
+
         var statusCell = row.querySelector('.js-status');
         if (statusCell) {
           statusCell.textContent = client.status;
