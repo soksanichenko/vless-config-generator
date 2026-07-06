@@ -323,13 +323,27 @@ implemented from for the full ground-truth investigation):
   whole time (verified via the actual `docker logs`/DB state), but GitHub
   itself replaced it with the default before the workflow ever saw it —
   every dispatched run's `${{ inputs.flow }}` came out as
-  `xtls-rprx-vision` regardless of what was actually sent. Fixed by
-  dropping `default:` and making `flow` `required: true` on both
-  workflows, mirroring the same fix already applied to this repo's own
-  `Form(...)` parameters for the identical FastAPI quirk (see "Per-client
-  `flow`" implementation notes) — this class of bug (a framework silently
-  treating a legitimate empty string as "absent" and substituting a
-  default) has now hit both layers of this exact feature.
+  `xtls-rprx-vision` regardless of what was actually sent.
+  **Third bug fixed, same symptom, worse failure mode:** dropping
+  `default:` and making `flow` `required: true` (matching this repo's own
+  `Form(...)` fix for the same class of issue) turned out not to be a fix
+  either — it just swapped the silent wrong-value bug for an outright
+  `422 Unprocessable Entity` from the `dispatches` API whenever an empty
+  string was sent, confirmed live via this repo's own container logs.
+  GitHub's `workflow_dispatch` REST API apparently cannot carry a
+  genuinely empty string for *any* input, required or not: `required:
+  false` + `default` silently substitutes the default, `required: true`
+  rejects the call. The actual fix (`github_dispatch.py`'s
+  `NO_FLOW_SENTINEL`/`_flow_input`): the backend sends the literal string
+  `"none"` over the wire instead of `""` whenever flow is empty, and
+  both `add_vless_client.yml`/`update_vless_client.yml` translate `"none"`
+  back to a real empty string (`'' if vless_client_flow == 'none' else
+  vless_client_flow`) before building the client's Infisical entry — the
+  same sentinel-and-translate workaround documented in [community
+  discussion #172518](https://github.com/orgs/community/discussions/172518)
+  for `type: choice` inputs, applied here to a plain `type: string` one.
+  `flow` stays `required: true` on both workflows (a value, sentinel or
+  real, is always sent now, so there's nothing to default).
 - **Editing a client** (`POST /admin/clients/{id}/edit`, email + flow only —
   the UUID itself is never editable through this route, that would be
   credential rotation, a separate concern not implemented here) reuses the

@@ -12,12 +12,25 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+# GitHub's workflow_dispatch REST API doesn't accept a genuinely empty string
+# for an input: with `required: true` it rejects the call outright (422),
+# and with `required: false` + a `default:` it silently substitutes the
+# default instead of the empty string actually sent — either way, "no flow"
+# can't cross the API as "". Sent as this sentinel instead; the receiving
+# playbook (`add_vless_client.yml`/`update_vless_client.yml`) translates it
+# back to an empty string before building the client's Infisical entry.
+NO_FLOW_SENTINEL = "none"
+
 
 def _headers(github_token: str) -> dict[str, str]:
     return {
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {github_token}",
     }
+
+
+def _flow_input(flow: str) -> str:
+    return flow if flow else NO_FLOW_SENTINEL
 
 
 async def dispatch_new_client(
@@ -36,7 +49,7 @@ async def dispatch_new_client(
         headers=_headers(github_token),
         json={
             "ref": "main",
-            "inputs": {"email": email, "uuid": client_uuid, "flow": flow},
+            "inputs": {"email": email, "uuid": client_uuid, "flow": _flow_input(flow)},
         },
     )
     response.raise_for_status()
@@ -75,7 +88,7 @@ async def dispatch_update_client(
         headers=_headers(github_token),
         json={
             "ref": "main",
-            "inputs": {"uuid": client_uuid, "email": email, "flow": flow},
+            "inputs": {"uuid": client_uuid, "email": email, "flow": _flow_input(flow)},
         },
     )
     response.raise_for_status()
