@@ -1,9 +1,9 @@
-import type { Action } from '../types/rules'
+import type { FinalAction } from '../types/rules'
 import { useLang } from '../i18n/LangContext'
 
 interface Props {
-  value: Action
-  onChange: (value: Action) => void
+  value: FinalAction
+  onChange: (value: FinalAction) => void
 }
 
 export function DefaultOutboundToggle({ value, onChange }: Props) {

@@ -15,7 +15,13 @@ export type ConditionType =
   | 'process_name'
   | 'process_path'
 
-export type Action = 'direct' | 'proxy'
+/** `reject` needs no outbound tag — sing-box handles it as a built-in rule action,
+ * unlike direct/proxy which resolve to the detected outbound tags. */
+export type Action = 'direct' | 'proxy' | 'reject'
+
+/** route.final only accepts an outbound tag, so the default/fallback action can't
+ * be `reject` the way a per-rule action can. */
+export type FinalAction = 'direct' | 'proxy'
 
 /** Free-typed list of values for a single condition. Interpretation (numbers,
  * enum members, rule_set tags, ...) is decided at build time per `type`. */
@@ -25,9 +31,23 @@ export interface Condition {
   values: string[]
 }
 
-export interface Rule {
+/** One branch of a `logical` rule — a flat, ANDed-across-types condition set (same
+ * shape as a `simple` rule's conditions), optionally negated on its own. */
+export interface RuleBranch {
   id: string
   conditions: Condition[]
+  invert: boolean
+}
+
+export interface Rule {
+  id: string
+  /** `simple` = sing-box's default rule (flat conditions). `logical` = sing-box's
+   * `type: logical` rule (AND/OR of branches). */
+  mode: 'simple' | 'logical'
+  conditions: Condition[]
+  logicalMode: 'and' | 'or'
+  branches: RuleBranch[]
+  invert: boolean
   action: Action
 }
 

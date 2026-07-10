@@ -16,7 +16,10 @@ export function RuleList({ rules, ruleSets, onChange }: Props) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
 
   function addRule() {
-    onChange([...rules, { id: newId(), conditions: [], action: 'direct' }])
+    onChange([
+      ...rules,
+      { id: newId(), mode: 'simple', conditions: [], logicalMode: 'and', branches: [], invert: false, action: 'direct' },
+    ])
   }
 
   function updateRule(updated: Rule) {

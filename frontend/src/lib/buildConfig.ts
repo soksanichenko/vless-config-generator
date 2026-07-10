@@ -1,5 +1,5 @@
 import type { SingBoxConfig } from '../types/singbox'
-import type { Action, Condition, ConditionType, Rule, RuleSetDef } from '../types/rules'
+import type { Action, Condition, ConditionType, FinalAction, Rule, RuleSetDef } from '../types/rules'
 import type { VlessClient } from '../types/clients'
 import type { Region } from '../types/region'
 import type { MultiplexSettings } from '../types/multiplex'
@@ -9,7 +9,7 @@ export interface BuildConfigInput {
   config: SingBoxConfig
   rules: Rule[]
   ruleSets: RuleSetDef[]
-  defaultAction: Action
+  defaultAction: FinalAction
   directTag: string
   proxyTag: string
   proxyOutboundIndex: number | null
@@ -71,6 +71,12 @@ function ruleSetTagsFor(values: string[], ruleSets: RuleSetDef[]): string[] {
   return values.map((id) => byId.get(id)).filter((tag): tag is string => Boolean(tag))
 }
 
+/** A rule's conditions regardless of whether they live flat on it (`simple` mode)
+ * or spread across its branches (`logical` mode). */
+function allConditionsOf(rule: Rule): Condition[] {
+  return rule.mode === 'logical' ? rule.branches.flatMap((branch) => branch.conditions) : rule.conditions
+}
+
 /** Whether any rule matches on an IP directly, meaning the destination must be
  * resolved before routing can evaluate it (geoip rule sets are IP lists, not domains). */
 function needsIpResolve(rules: Rule[], ruleSets: RuleSetDef[]): boolean {
@@ -78,7 +84,7 @@ function needsIpResolve(rules: Rule[], ruleSets: RuleSetDef[]): boolean {
     ruleSets.filter((ruleSet) => ruleSet.kind === 'geoip').map((ruleSet) => ruleSet.id),
   )
   return rules.some((rule) =>
-    rule.conditions.some((condition) => {
+    allConditionsOf(rule).some((condition) => {
       if (condition.type === 'ip_cidr') return condition.values.length > 0
       if (condition.type === 'rule_set') return condition.values.some((id) => geoipRuleSetIds.has(id))
       return false
@@ -86,9 +92,7 @@ function needsIpResolve(rules: Rule[], ruleSets: RuleSetDef[]): boolean {
   )
 }
 
-function buildRule(rule: Rule, ruleSets: RuleSetDef[], directTag: string, proxyTag: string): Record<string, unknown> | null {
-  if (rule.conditions.length === 0) return null
-
+function buildConditionFields(conditions: Condition[], ruleSets: RuleSetDef[]): Record<string, unknown> | null {
   const output: Record<string, unknown> = {}
 
   const stringListTypes: ConditionType[] = [
@@ -104,26 +108,56 @@ function buildRule(rule: Rule, ruleSets: RuleSetDef[], directTag: string, proxyT
     'port_range',
   ]
   for (const type of stringListTypes) {
-    const values = mergeConditionValues(rule.conditions, type)
+    const values = mergeConditionValues(conditions, type)
     if (values.length > 0) output[type] = values
   }
 
-  const ports = mergeConditionValues(rule.conditions, 'port')
+  const ports = mergeConditionValues(conditions, 'port')
     .map((value) => Number.parseInt(value, 10))
     .filter((value) => Number.isFinite(value))
   if (ports.length > 0) output.port = ports
 
-  const ruleSetTags = ruleSetTagsFor(mergeConditionValues(rule.conditions, 'rule_set'), ruleSets)
+  const ruleSetTags = ruleSetTagsFor(mergeConditionValues(conditions, 'rule_set'), ruleSets)
   if (ruleSetTags.length > 0) output.rule_set = ruleSetTags
 
-  if (rule.conditions.some((condition) => condition.type === 'ip_is_private')) {
+  if (conditions.some((condition) => condition.type === 'ip_is_private')) {
     output.ip_is_private = true
   }
 
-  if (Object.keys(output).length === 0) return null
+  return Object.keys(output).length > 0 ? output : null
+}
 
-  output.outbound = rule.action === 'direct' ? directTag : proxyTag
-  return output
+/** `reject` is a built-in rule action with no outbound of its own — direct/proxy
+ * instead resolve to whichever outbound tag was detected for them. */
+function actionFieldsFor(action: Action, directTag: string, proxyTag: string): Record<string, unknown> {
+  if (action === 'reject') return { action: 'reject' }
+  return { outbound: action === 'direct' ? directTag : proxyTag }
+}
+
+function buildRule(rule: Rule, ruleSets: RuleSetDef[], directTag: string, proxyTag: string): Record<string, unknown> | null {
+  if (rule.mode === 'logical') {
+    const branchRules = rule.branches
+      .map((branch) => {
+        const fields = buildConditionFields(branch.conditions, ruleSets)
+        if (!fields) return null
+        if (branch.invert) fields.invert = true
+        return fields
+      })
+      .filter((entry): entry is Record<string, unknown> => entry !== null)
+    if (branchRules.length === 0) return null
+    return {
+      type: 'logical',
+      mode: rule.logicalMode,
+      rules: branchRules,
+      ...(rule.invert ? { invert: true } : {}),
+      ...actionFieldsFor(rule.action, directTag, proxyTag),
+    }
+  }
+
+  const fields = buildConditionFields(rule.conditions, ruleSets)
+  if (!fields) return null
+  if (rule.invert) fields.invert = true
+  return { ...fields, ...actionFieldsFor(rule.action, directTag, proxyTag) }
 }
 
 export function buildOutputConfig(input: BuildConfigInput): SingBoxConfig {

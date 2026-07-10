@@ -121,6 +121,19 @@ const DICT = {
     ru: 'Условий ещё нет — это правило не попадёт в результат.',
   },
   'ruleCard.addCondition': { en: '+ Add condition', ua: '+ Додати умову', ru: '+ Добавить условие' },
+  'ruleCard.modeSimple': { en: 'Simple', ua: 'Простий', ru: 'Простое' },
+  'ruleCard.modeLogical': { en: 'Logical (AND/OR)', ua: 'Логічний (AND/OR)', ru: 'Логическое (AND/OR)' },
+  'ruleCard.logicalAnd': { en: 'AND', ua: 'AND', ru: 'AND' },
+  'ruleCard.logicalOr': { en: 'OR', ua: 'OR', ru: 'OR' },
+  'ruleCard.invert': { en: 'Invert', ua: 'Інвертувати', ru: 'Инвертировать' },
+  'ruleCard.noBranches': {
+    en: "No branches yet — this rule won't be included in the output.",
+    ua: 'Гілок ще немає — це правило не потрапить у результат.',
+    ru: 'Ветвей ещё нет — это правило не попадёт в результат.',
+  },
+  'ruleCard.addBranch': { en: '+ Add branch', ua: '+ Додати гілку', ru: '+ Добавить ветку' },
+  'ruleCard.branchLabel': { en: 'Branch {index}', ua: 'Гілка {index}', ru: 'Ветка {index}' },
+  'ruleCard.removeBranchAria': { en: 'Remove branch', ua: 'Видалити гілку', ru: 'Удалить ветку' },
 
   'condition.removeAria': { en: 'Remove condition', ua: 'Видалити умову', ru: 'Удалить условие' },
   'condition.matchesAutomatically': { en: 'Matches automatically.', ua: 'Збігається автоматично.', ru: 'Совпадает автоматически.' },
@@ -140,6 +153,7 @@ const DICT = {
 
   'common.direct': { en: 'Direct', ua: 'Напряму', ru: 'Напрямую' },
   'common.proxy': { en: 'Proxy', ua: 'Проксі', ru: 'Прокси' },
+  'common.reject': { en: 'Reject', ua: 'Відхилити', ru: 'Отклонить' },
 
   'output.heading': { en: '7. Output', ua: '7. Результат', ru: '7. Результат' },
   'output.emptyState': {
@@ -171,6 +185,19 @@ const DICT = {
     ua: 'Одне або кілька правил не мають умов і будуть відкинуті з результату.',
     ru: 'Одно или несколько правил не имеют условий и будут отброшены из результата.',
   },
+
+  'importWarnings.heading': {
+    en: 'Not imported from pasted config',
+    ua: 'Не імпортовано з вставленого конфігу',
+    ru: 'Не импортировано из вставленного конфига',
+  },
+  'importWarnings.help': {
+    en: "These route.rule_set / route.rules entries from your pasted config don't map onto the rule builder below and will be dropped from the generated output unless you recreate them manually.",
+    ua: 'Ці записи route.rule_set / route.rules із вашого вставленого конфігу не вкладаються в конструктор правил нижче і будуть відкинуті зі згенерованого результату, якщо ви не відтворите їх вручну.',
+    ru: 'Эти записи route.rule_set / route.rules из вставленного вами конфига не укладываются в конструктор правил ниже и будут отброшены из сгенерированного результата, если вы не воссоздадите их вручную.',
+  },
+  'importWarnings.ruleSetsLabel': { en: 'Rule sets:', ua: 'Набори правил:', ru: 'Наборы правил:' },
+  'importWarnings.rulesLabel': { en: 'Rules:', ua: 'Правила:', ru: 'Правила:' },
 
   'condition.domain.label': { en: 'Domain (exact)', ua: 'Домен (точний)', ru: 'Домен (точный)' },
   'condition.domain_suffix.label': { en: 'Domain suffix', ua: 'Суфікс домену', ru: 'Суффикс домена' },

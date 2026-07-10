@@ -243,6 +243,21 @@ button:disabled {
   user-select: none;
 }
 
+.rule-branch {
+  background: #12151b;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.rule-branch-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
 .condition-row {
   display: flex;
   gap: 8px;
