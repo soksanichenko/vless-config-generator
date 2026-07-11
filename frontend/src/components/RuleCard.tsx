@@ -1,6 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ConditionEditor } from './ConditionEditor'
+import { InfoTooltip } from './InfoTooltip'
 import { RuleBranchEditor } from './RuleBranchEditor'
 import { newId } from '../lib/id'
 import type { Action, Condition, Rule, RuleBranch, RuleSetDef } from '../types/rules'
@@ -82,6 +83,7 @@ export function RuleCard({ rule, ruleSets, onChange, onRemove }: Props) {
             {t('ruleCard.modeLogical')}
           </button>
         </div>
+        <InfoTooltip text={t('ruleCard.modeHelp')} />
         <div className="pill-group" style={{ flex: 1 }}>
           <button type="button" className={rule.action === 'direct' ? 'active' : ''} onClick={() => setAction('direct')}>
             {t('common.direct')}
@@ -93,6 +95,7 @@ export function RuleCard({ rule, ruleSets, onChange, onRemove }: Props) {
             {t('common.reject')}
           </button>
         </div>
+        <InfoTooltip text={t('ruleCard.actionHelp')} />
         <button type="button" className="danger" onClick={onRemove}>
           {t('ruleCard.deleteRule')}
         </button>
@@ -100,13 +103,14 @@ export function RuleCard({ rule, ruleSets, onChange, onRemove }: Props) {
 
       <div className="row spacer-top" style={{ marginBottom: 10 }}>
         {rule.mode === 'logical' && (
-          <div className="pill-group" style={{ flex: '0 0 auto' }}>
+          <div className="pill-group" style={{ flex: '0 0 auto', alignItems: 'center' }}>
             <button type="button" className={rule.logicalMode === 'and' ? 'active' : ''} onClick={() => setLogicalMode('and')}>
               {t('ruleCard.logicalAnd')}
             </button>
             <button type="button" className={rule.logicalMode === 'or' ? 'active' : ''} onClick={() => setLogicalMode('or')}>
               {t('ruleCard.logicalOr')}
             </button>
+            <InfoTooltip text={t('ruleCard.logicalModeHelp')} />
           </div>
         )}
         <div className="checkbox-group">
@@ -118,6 +122,7 @@ export function RuleCard({ rule, ruleSets, onChange, onRemove }: Props) {
             />
             {t('ruleCard.invert')}
           </label>
+          <InfoTooltip text={t('ruleCard.invertHelp')} />
         </div>
       </div>
 

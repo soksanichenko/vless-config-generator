@@ -50,7 +50,10 @@ below.
   outbound needed), the whole rule can be **inverted**, and a rule can
   switch from a flat condition list to a **logical AND/OR** group of
   independent branches (each with its own optional invert) — matching
-  sing-box's `type: logical` rules one level deep
+  sing-box's `type: logical` rules one level deep. Every condition type has
+  inline help text, and the less obvious controls (Simple/Logical, AND/OR,
+  Invert, and the action row) additionally carry a hover/focus tooltip
+  (ⓘ) explaining what they do
 - **Import existing rules from a pasted config** — if the pasted config's
   `route.rules`/`route.rule_set` already has rules baked in, they're parsed
   into the rule builder above (rule sets, conditions, action, invert,

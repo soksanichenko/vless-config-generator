@@ -641,6 +641,16 @@ cookie-session based, both enforced via nginx `auth_request`:
   (`frontend/src/components/ImportWarnings.tsx`) right under the paste box,
   so the user sees exactly what won't make it into the output instead of it
   quietly vanishing.
+- **Inline help + hover tooltips** — every `CONDITION_TYPES` entry now has a
+  `helpKey` (previously only `rule_set`/`ip_is_private`/`process_name`/
+  `process_path` did), rendered the same way: a permanently-visible
+  `help-text` line under the condition-type dropdown. The newer per-rule
+  controls (Simple/Logical mode, AND/OR, Invert, and the action row
+  including `reject`) instead get a hover/focus-triggered tooltip
+  (`frontend/src/components/InfoTooltip.tsx` — a small ⓘ icon, CSS-only
+  bubble, no new dependency) rather than a permanent help line, since a
+  rule list can hold many rules and a persistent explanation under every
+  toggle would be too much vertical noise per rule.
 - Which outbound tag is "direct" and which is "proxy" is auto-detected from
   `type: "direct"` / `type: "vless"` in the parsed config (`App.tsx`) — rules
   and the default-outbound toggle route to whichever tags that finds. There

@@ -1,4 +1,5 @@
 import { ConditionEditor } from './ConditionEditor'
+import { InfoTooltip } from './InfoTooltip'
 import { newId } from '../lib/id'
 import type { Condition, RuleBranch, RuleSetDef } from '../types/rules'
 import { useLang } from '../i18n/LangContext'
@@ -42,6 +43,7 @@ export function RuleBranchEditor({ index, branch, ruleSets, onChange, onRemove }
             />
             {t('ruleCard.invert')}
           </label>
+          <InfoTooltip text={t('ruleCard.branchInvertHelp')} />
         </div>
         <button type="button" className="danger" onClick={onRemove} aria-label={t('ruleCard.removeBranchAria')}>
           ×
