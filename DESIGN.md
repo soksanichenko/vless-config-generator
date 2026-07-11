@@ -32,12 +32,12 @@ else (outbounds, inbounds) passes through untouched.
   `preferred_by`, `clash_mode`, etc.) target GUI clients with rich
   device/runtime context, not this generator's headless sing-box use case.
 - Condition types:
-  - `process_name` / `process_path` — app-based routing. Only works when
-    sing-box runs as a full local client with permission to read the OS
-    process list. Target platforms: **Windows and Linux**. On Linux this
-    needs root/`CAP_NET_ADMIN` — the UI must surface that caveat, it's not
-    universally available (e.g. won't work on a router or restricted
-    environment).
+  - `process_name` / `process_path` / `process_path_regex` — app-based
+    routing. Only works when sing-box runs as a full local client with
+    permission to read the OS process list. Target platforms: **Windows and
+    Linux**. On Linux this needs root/`CAP_NET_ADMIN` — the UI must surface
+    that caveat, it's not universally available (e.g. won't work on a router
+    or restricted environment).
   - `port` / `port_range`
   - `network` (tcp/udp)
   - `protocol` (http/tls/quic/...)

@@ -14,6 +14,7 @@ export type ConditionType =
   | 'protocol'
   | 'process_name'
   | 'process_path'
+  | 'process_path_regex'
 
 /** `reject` needs no outbound tag — sing-box handles it as a built-in rule action,
  * unlike direct/proxy which resolve to the detected outbound tags. */
@@ -159,6 +160,13 @@ export const CONDITION_TYPES: ConditionTypeInfo[] = [
     helpKey: 'condition.process_path.help',
     valueKind: 'text',
     placeholder: '/usr/bin/firefox',
+  },
+  {
+    type: 'process_path_regex',
+    labelKey: 'condition.process_path_regex.label',
+    helpKey: 'condition.process_path_regex.help',
+    valueKind: 'text',
+    placeholder: '^/usr/bin/.+',
   },
 ]
 

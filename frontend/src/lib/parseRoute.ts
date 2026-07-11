@@ -12,6 +12,7 @@ const STRING_LIST_CONDITION_TYPES: ConditionType[] = [
   'protocol',
   'process_name',
   'process_path',
+  'process_path_regex',
   'port_range',
 ]
 

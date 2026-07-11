@@ -45,7 +45,8 @@ below.
   each rule combining any of: domain (exact/suffix/keyword/regex), rule sets
   (geosite/geoip `.srs`, both quick-add by category and custom URLs),
   IP CIDR, private IP (LAN), port/port range, network (tcp/udp), protocol,
-  process name/path (Windows/Linux only, needs root/`CAP_NET_ADMIN` on Linux).
+  process name/path/path-regex (Windows/Linux only, needs root/`CAP_NET_ADMIN`
+  on Linux).
   A rule's action is direct/proxy/**reject** (drop the connection, no
   outbound needed), the whole rule can be **inverted**, and a rule can
   switch from a flat condition list to a **logical AND/OR** group of

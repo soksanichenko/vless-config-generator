@@ -302,6 +302,16 @@ const DICT = {
     ua: "Те саме застереження щодо платформи/прав, що й для імені процесу.",
     ru: 'То же предостережение по платформе/правам, что и для имени процесса.',
   },
+  'condition.process_path_regex.label': {
+    en: 'Process path (regex)',
+    ua: 'Шлях до процесу (regex)',
+    ru: 'Путь к процессу (regex)',
+  },
+  'condition.process_path_regex.help': {
+    en: 'Matches the process path using a regular expression instead of an exact match. Same platform/permission caveat as process name.',
+    ua: 'Збігається зі шляхом до процесу за регулярним виразом замість точного збігу. Те саме застереження щодо платформи/прав, що й для імені процесу.',
+    ru: 'Совпадает с путём к процессу по регулярному выражению вместо точного совпадения. То же предостережение по платформе/правам, что и для имени процесса.',
+  },
 } as const
 
 export type TranslationKey = keyof typeof DICT

@@ -105,6 +105,7 @@ function buildConditionFields(conditions: Condition[], ruleSets: RuleSetDef[]): 
     'protocol',
     'process_name',
     'process_path',
+    'process_path_regex',
     'port_range',
   ]
   for (const type of stringListTypes) {
