@@ -243,6 +243,64 @@ button:disabled {
   user-select: none;
 }
 
+.rule-branch {
+  background: #12151b;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.rule-branch-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.info-tooltip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-dim);
+  cursor: help;
+  outline: none;
+}
+
+.info-tooltip-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.info-tooltip-bubble {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2430;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  font-weight: normal;
+  color: var(--text);
+  white-space: normal;
+  width: max-content;
+  max-width: 240px;
+  z-index: 20;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.info-tooltip:hover .info-tooltip-bubble,
+.info-tooltip:focus-visible .info-tooltip-bubble {
+  opacity: 1;
+  visibility: visible;
+}
+
 .condition-row {
   display: flex;
   gap: 8px;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ClientInfo } from './components/ClientInfo'
 import { ConfigPaste } from './components/ConfigPaste'
+import { ImportWarnings } from './components/ImportWarnings'
 import { RuleSetManager } from './components/RuleSetManager'
 import { RuleList } from './components/RuleList'
 import { DefaultOutboundToggle } from './components/DefaultOutboundToggle'
@@ -10,9 +11,10 @@ import { OutputPanel } from './components/OutputPanel'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
 import { buildOutputConfig } from './lib/buildConfig'
 import { DEFAULT_CONFIG_TEXT } from './lib/defaultConfig'
+import { parseExistingRoute } from './lib/parseRoute'
 import { listOutbounds } from './types/singbox'
 import type { SingBoxConfig } from './types/singbox'
-import type { Action, Rule, RuleSetDef } from './types/rules'
+import type { FinalAction, Rule, RuleSetDef } from './types/rules'
 import type { ClientsResponse, VlessClient } from './types/clients'
 import type { Region } from './types/region'
 import { DEFAULT_MULTIPLEX_SETTINGS } from './types/multiplex'
@@ -39,7 +41,11 @@ export function App() {
 
   const [ruleSets, setRuleSets] = useState<RuleSetDef[]>([])
   const [rules, setRules] = useState<Rule[]>([])
-  const [defaultAction, setDefaultAction] = useState<Action>('direct')
+  const [defaultAction, setDefaultAction] = useState<FinalAction>('direct')
+  const [skippedImport, setSkippedImport] = useState<{
+    ruleSets: Record<string, unknown>[]
+    rules: Record<string, unknown>[]
+  }>({ ruleSets: [], rules: [] })
   const [region, setRegion] = useState<Region>('default')
   const [multiplex, setMultiplex] = useState<MultiplexSettingsValue>(DEFAULT_MULTIPLEX_SETTINGS)
 
@@ -75,26 +81,49 @@ export function App() {
 
   const outbounds = useMemo(() => (parsedConfig ? listOutbounds(parsedConfig) : []), [parsedConfig])
 
-  // Auto-detect direct/proxy outbounds whenever a new config is parsed.
+  // Auto-detect direct/proxy outbounds whenever a new config is parsed, and — if the
+  // rule builder is still empty — import any rules/rule sets already baked into the
+  // pasted config's `route` section, since buildConfig would otherwise silently
+  // discard them the moment it regenerates `route` from scratch. Intentionally reads
+  // `rules`/`ruleSets` without listing them as dependencies: this must only fire off
+  // of a config paste, not on every manual rule edit.
   useEffect(() => {
     if (outbounds.length === 0) {
       setDirectTag('')
       setProxyTag('')
       setProxyOutboundIndex(null)
+      setSkippedImport({ ruleSets: [], rules: [] })
       return
     }
     const direct = outbounds.find((outbound) => outbound.type === 'direct')
     const proxy = outbounds.find((outbound) => outbound.type === 'vless')
-    setDirectTag(direct?.tag ?? '')
-    setProxyTag(proxy?.tag ?? '')
+    const newDirectTag = direct?.tag ?? ''
+    const newProxyTag = proxy?.tag ?? ''
+    setDirectTag(newDirectTag)
+    setProxyTag(newProxyTag)
     setProxyOutboundIndex(proxy?.index ?? null)
+
+    if (parsedConfig && rules.length === 0 && ruleSets.length === 0) {
+      const parsed = parseExistingRoute(parsedConfig, newDirectTag, newProxyTag)
+      if (parsed.ruleSets.length > 0) setRuleSets(parsed.ruleSets)
+      if (parsed.rules.length > 0) setRules(parsed.rules)
+      if (parsed.defaultAction) setDefaultAction(parsed.defaultAction)
+      setSkippedImport({ ruleSets: parsed.skippedRuleSets, rules: parsed.skippedRules })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsedConfig])
 
   const warnings = useMemo(() => {
     const messages: string[] = []
     if (parsedConfig && !directTag) messages.push(t('warnings.noDirect'))
     if (parsedConfig && !proxyTag) messages.push(t('warnings.noProxy'))
-    if (rules.some((rule) => rule.conditions.length === 0)) {
+    if (
+      rules.some((rule) =>
+        rule.mode === 'logical'
+          ? rule.branches.every((branch) => branch.conditions.length === 0)
+          : rule.conditions.length === 0,
+      )
+    ) {
       messages.push(t('warnings.emptyRules'))
     }
     return messages
@@ -149,6 +178,8 @@ export function App() {
       <MultiplexSettings value={multiplex} onChange={setMultiplex} />
 
       <ConfigPaste value={configText} onChange={setConfigText} error={parseError} />
+
+      <ImportWarnings ruleSets={skippedImport.ruleSets} rules={skippedImport.rules} />
 
       <RuleSetManager ruleSets={ruleSets} onChange={setRuleSets} />
 

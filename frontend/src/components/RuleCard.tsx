@@ -1,8 +1,10 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ConditionEditor } from './ConditionEditor'
+import { InfoTooltip } from './InfoTooltip'
+import { RuleBranchEditor } from './RuleBranchEditor'
 import { newId } from '../lib/id'
-import type { Action, Condition, Rule, RuleSetDef } from '../types/rules'
+import type { Action, Condition, Rule, RuleBranch, RuleSetDef } from '../types/rules'
 import { useLang } from '../i18n/LangContext'
 
 interface Props {
@@ -28,6 +30,14 @@ export function RuleCard({ rule, ruleSets, onChange, onRemove }: Props) {
     onChange({ ...rule, action })
   }
 
+  function setMode(mode: Rule['mode']) {
+    onChange({ ...rule, mode })
+  }
+
+  function setLogicalMode(logicalMode: Rule['logicalMode']) {
+    onChange({ ...rule, logicalMode })
+  }
+
   function addCondition() {
     onChange({
       ...rule,
@@ -46,12 +56,34 @@ export function RuleCard({ rule, ruleSets, onChange, onRemove }: Props) {
     onChange({ ...rule, conditions: rule.conditions.filter((condition) => condition.id !== id) })
   }
 
+  function addBranch() {
+    const branch: RuleBranch = { id: newId(), conditions: [], invert: false }
+    onChange({ ...rule, branches: [...rule.branches, branch] })
+  }
+
+  function updateBranch(updated: RuleBranch) {
+    onChange({ ...rule, branches: rule.branches.map((branch) => (branch.id === updated.id ? updated : branch)) })
+  }
+
+  function removeBranch(id: string) {
+    onChange({ ...rule, branches: rule.branches.filter((branch) => branch.id !== id) })
+  }
+
   return (
     <div className="rule-card" ref={setNodeRef} style={style}>
       <div className="rule-card-header">
         <span className="drag-handle" {...attributes} {...listeners}>
           ⠿
         </span>
+        <div className="pill-group">
+          <button type="button" className={rule.mode === 'simple' ? 'active' : ''} onClick={() => setMode('simple')}>
+            {t('ruleCard.modeSimple')}
+          </button>
+          <button type="button" className={rule.mode === 'logical' ? 'active' : ''} onClick={() => setMode('logical')}>
+            {t('ruleCard.modeLogical')}
+          </button>
+        </div>
+        <InfoTooltip text={t('ruleCard.modeHelp')} />
         <div className="pill-group" style={{ flex: 1 }}>
           <button type="button" className={rule.action === 'direct' ? 'active' : ''} onClick={() => setAction('direct')}>
             {t('common.direct')}
@@ -59,27 +91,77 @@ export function RuleCard({ rule, ruleSets, onChange, onRemove }: Props) {
           <button type="button" className={rule.action === 'proxy' ? 'active' : ''} onClick={() => setAction('proxy')}>
             {t('common.proxy')}
           </button>
+          <button type="button" className={rule.action === 'reject' ? 'active' : ''} onClick={() => setAction('reject')}>
+            {t('common.reject')}
+          </button>
         </div>
+        <InfoTooltip text={t('ruleCard.actionHelp')} />
         <button type="button" className="danger" onClick={onRemove}>
           {t('ruleCard.deleteRule')}
         </button>
       </div>
 
-      {rule.conditions.length === 0 && <p className="help-text">{t('ruleCard.noConditions')}</p>}
+      <div className="row spacer-top" style={{ marginBottom: 10 }}>
+        {rule.mode === 'logical' && (
+          <div className="pill-group" style={{ flex: '0 0 auto', alignItems: 'center' }}>
+            <button type="button" className={rule.logicalMode === 'and' ? 'active' : ''} onClick={() => setLogicalMode('and')}>
+              {t('ruleCard.logicalAnd')}
+            </button>
+            <button type="button" className={rule.logicalMode === 'or' ? 'active' : ''} onClick={() => setLogicalMode('or')}>
+              {t('ruleCard.logicalOr')}
+            </button>
+            <InfoTooltip text={t('ruleCard.logicalModeHelp')} />
+          </div>
+        )}
+        <div className="checkbox-group">
+          <label>
+            <input
+              type="checkbox"
+              checked={rule.invert}
+              onChange={(event) => onChange({ ...rule, invert: event.target.checked })}
+            />
+            {t('ruleCard.invert')}
+          </label>
+          <InfoTooltip text={t('ruleCard.invertHelp')} />
+        </div>
+      </div>
 
-      {rule.conditions.map((condition) => (
-        <ConditionEditor
-          key={condition.id}
-          condition={condition}
-          ruleSets={ruleSets}
-          onChange={updateCondition}
-          onRemove={() => removeCondition(condition.id)}
-        />
-      ))}
+      {rule.mode === 'simple' && (
+        <>
+          {rule.conditions.length === 0 && <p className="help-text">{t('ruleCard.noConditions')}</p>}
+          {rule.conditions.map((condition) => (
+            <ConditionEditor
+              key={condition.id}
+              condition={condition}
+              ruleSets={ruleSets}
+              onChange={updateCondition}
+              onRemove={() => removeCondition(condition.id)}
+            />
+          ))}
+          <button type="button" onClick={addCondition}>
+            {t('ruleCard.addCondition')}
+          </button>
+        </>
+      )}
 
-      <button type="button" onClick={addCondition}>
-        {t('ruleCard.addCondition')}
-      </button>
+      {rule.mode === 'logical' && (
+        <>
+          {rule.branches.length === 0 && <p className="help-text">{t('ruleCard.noBranches')}</p>}
+          {rule.branches.map((branch, index) => (
+            <RuleBranchEditor
+              key={branch.id}
+              index={index}
+              branch={branch}
+              ruleSets={ruleSets}
+              onChange={updateBranch}
+              onRemove={() => removeBranch(branch.id)}
+            />
+          ))}
+          <button type="button" onClick={addBranch}>
+            {t('ruleCard.addBranch')}
+          </button>
+        </>
+      )}
     </div>
   )
 }

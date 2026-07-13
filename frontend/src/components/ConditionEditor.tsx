@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { CONDITION_TYPES, conditionTypeInfo, type Condition, type ConditionType } from '../types/rules'
 import type { RuleSetDef } from '../types/rules'
 import { useLang } from '../i18n/LangContext'
@@ -13,8 +14,28 @@ export function ConditionEditor({ condition, ruleSets, onChange, onRemove }: Pro
   const { t } = useLang()
   const info = conditionTypeInfo(condition.type)
 
+  // Decoupled from `condition.values` so a trailing space/comma while typing isn't
+  // immediately trimmed/filtered away by the derived array re-rendering underneath
+  // the cursor. Only resynced when the condition's type changes (values reset to []).
+  const [textValue, setTextValue] = useState(() => condition.values.join(', '))
+  useEffect(() => {
+    setTextValue(condition.values.join(', '))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [condition.type])
+
   function setType(type: ConditionType) {
     onChange({ ...condition, type, values: [] })
+  }
+
+  function setTextValues(raw: string) {
+    setTextValue(raw)
+    onChange({
+      ...condition,
+      values: raw
+        .split(',')
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0),
+    })
   }
 
   function toggleValue(value: string) {
@@ -43,16 +64,8 @@ export function ConditionEditor({ condition, ruleSets, onChange, onRemove }: Pro
           <input
             type="text"
             placeholder={`${info.placeholder ?? ''} ${t('condition.commaSeparated')}`}
-            value={condition.values.join(', ')}
-            onChange={(event) =>
-              onChange({
-                ...condition,
-                values: event.target.value
-                  .split(',')
-                  .map((value) => value.trim())
-                  .filter((value) => value.length > 0),
-              })
-            }
+            value={textValue}
+            onChange={(event) => setTextValues(event.target.value)}
           />
         )}
 

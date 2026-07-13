@@ -19,14 +19,25 @@ else (outbounds, inbounds) passes through untouched.
 
 - A list of rules, drag-reorderable (sing-box matches top to bottom, first hit
   wins — order is significant, must be exposed in the UI).
-- Each rule = one or more conditions + an action (`direct` or `proxy`).
+- Each rule = one or more conditions + an action (`direct`, `proxy`, or
+  `reject` — sing-box's built-in reject action, no outbound of its own),
+  and can be negated as a whole (`invert`). A rule is either `simple` (flat
+  conditions, sing-box's default rule) or `logical` (one level of AND/OR
+  branches, each its own independent flat condition set with its own
+  optional invert) — matches sing-box's `type: logical` rules, but not
+  arbitrarily nested (a branch's own sub-`rules` aren't modeled). Audited
+  against the sing-box v1.13 route-rule docs (via Context7); fields
+  intentionally left unimplemented (`inbound`, `client`, `source_ip_cidr`/
+  `source_port`, `network_type`/`wifi_ssid`/`interface_address`/
+  `preferred_by`, `clash_mode`, etc.) target GUI clients with rich
+  device/runtime context, not this generator's headless sing-box use case.
 - Condition types:
-  - `process_name` / `process_path` — app-based routing. Only works when
-    sing-box runs as a full local client with permission to read the OS
-    process list. Target platforms: **Windows and Linux**. On Linux this
-    needs root/`CAP_NET_ADMIN` — the UI must surface that caveat, it's not
-    universally available (e.g. won't work on a router or restricted
-    environment).
+  - `process_name` / `process_path` / `process_path_regex` — app-based
+    routing. Only works when sing-box runs as a full local client with
+    permission to read the OS process list. Target platforms: **Windows and
+    Linux**. On Linux this needs root/`CAP_NET_ADMIN` — the UI must surface
+    that caveat, it's not universally available (e.g. won't work on a router
+    or restricted environment).
   - `port` / `port_range`
   - `network` (tcp/udp)
   - `protocol` (http/tls/quic/...)
@@ -611,7 +622,35 @@ cookie-session based, both enforced via nginx `auth_request`:
   v1.13 docs via Context7 — `route.rule_set[]` entries with
   `type: "remote"`, referenced from rules via `rule_set: [tags]`) and
   drag-to-reorder (`@dnd-kit`). Default outbound is an explicit toggle
-  writing `route.final`.
+  writing `route.final` — it's typed separately (`FinalAction`, direct/proxy
+  only) from a per-rule `Action`, since `route.final` can only reference an
+  outbound tag and can't be `reject` the way a rule's own action can.
+- **Importing rules from a pasted config** (`frontend/src/lib/
+  parseRoute.ts`) — best-effort parses the pasted config's existing
+  `route.rule_set`/`route.rules` into the builder's `RuleSetDef`/`Rule`
+  model on first paste (only while the builder is still empty, so it never
+  clobbers rules the user is already editing), instead of `buildConfig`
+  silently discarding them the moment it regenerates `route` from scratch.
+  Structural rules `buildConfig` always regenerates itself (`sniff`, DNS
+  hijack, `resolve`) are recognized and skipped rather than re-imported as
+  user rules. Anything that doesn't map onto the builder's model — a
+  `rule_set` entry that isn't `type: remote` (or is missing `tag`/`url`), a
+  rule whose `outbound` isn't the detected direct/proxy tag, or `type:
+  logical` nesting deeper than one level — is reported back as skipped
+  rather than guessed at, and surfaced verbatim in a warning card
+  (`frontend/src/components/ImportWarnings.tsx`) right under the paste box,
+  so the user sees exactly what won't make it into the output instead of it
+  quietly vanishing.
+- **Inline help + hover tooltips** — every `CONDITION_TYPES` entry now has a
+  `helpKey` (previously only `rule_set`/`ip_is_private`/`process_name`/
+  `process_path` did), rendered the same way: a permanently-visible
+  `help-text` line under the condition-type dropdown. The newer per-rule
+  controls (Simple/Logical mode, AND/OR, Invert, and the action row
+  including `reject`) instead get a hover/focus-triggered tooltip
+  (`frontend/src/components/InfoTooltip.tsx` — a small ⓘ icon, CSS-only
+  bubble, no new dependency) rather than a permanent help line, since a
+  rule list can hold many rules and a persistent explanation under every
+  toggle would be too much vertical noise per rule.
 - Which outbound tag is "direct" and which is "proxy" is auto-detected from
   `type: "direct"` / `type: "vless"` in the parsed config (`App.tsx`) — rules
   and the default-outbound toggle route to whichever tags that finds. There
