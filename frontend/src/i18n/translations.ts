@@ -121,6 +121,44 @@ const DICT = {
     ru: 'Условий ещё нет — это правило не попадёт в результат.',
   },
   'ruleCard.addCondition': { en: '+ Add condition', ua: '+ Додати умову', ru: '+ Добавить условие' },
+  'ruleCard.modeSimple': { en: 'Simple', ua: 'Простий', ru: 'Простое' },
+  'ruleCard.modeLogical': { en: 'Logical (AND/OR)', ua: 'Логічний (AND/OR)', ru: 'Логическое (AND/OR)' },
+  'ruleCard.modeHelp': {
+    en: 'Simple: all conditions below must match together. Logical: combine independent branches with AND/OR instead.',
+    ua: 'Простий: усі умови нижче мають збігтися одночасно. Логічний: замість цього комбінує незалежні гілки через AND/OR.',
+    ru: 'Простое: все условия ниже должны совпасть одновременно. Логическое: вместо этого комбинирует независимые ветки через AND/OR.',
+  },
+  'ruleCard.logicalAnd': { en: 'AND', ua: 'AND', ru: 'AND' },
+  'ruleCard.logicalOr': { en: 'OR', ua: 'OR', ru: 'OR' },
+  'ruleCard.logicalModeHelp': {
+    en: 'AND: every branch must match. OR: matching any one branch is enough.',
+    ua: 'AND: кожна гілка має збігтися. OR: достатньо збігу лише однієї гілки.',
+    ru: 'AND: должна совпасть каждая ветка. OR: достаточно совпадения хотя бы одной ветки.',
+  },
+  'ruleCard.invert': { en: 'Invert', ua: 'Інвертувати', ru: 'Инвертировать' },
+  'ruleCard.invertHelp': {
+    en: "Matches when this rule's conditions do NOT match, instead of when they do.",
+    ua: 'Збігається, коли умови цього правила НЕ виконуються, замість того, коли вони виконуються.',
+    ru: 'Совпадает, когда условия этого правила НЕ выполняются, вместо того когда выполняются.',
+  },
+  'ruleCard.actionHelp': {
+    en: 'Direct/Proxy route matched traffic through that outbound. Reject immediately drops the connection instead, without using any outbound.',
+    ua: 'Напряму/Проксі спрямовують збіглий трафік через цей outbound. Відхилити натомість одразу розриває з’єднання, не використовуючи жодного outbound.',
+    ru: 'Напрямую/Прокси направляют совпавший трафик через этот outbound. Отклонить вместо этого сразу разрывает соединение, не используя никакой outbound.',
+  },
+  'ruleCard.noBranches': {
+    en: "No branches yet — this rule won't be included in the output.",
+    ua: 'Гілок ще немає — це правило не потрапить у результат.',
+    ru: 'Ветвей ещё нет — это правило не попадёт в результат.',
+  },
+  'ruleCard.addBranch': { en: '+ Add branch', ua: '+ Додати гілку', ru: '+ Добавить ветку' },
+  'ruleCard.branchLabel': { en: 'Branch {index}', ua: 'Гілка {index}', ru: 'Ветка {index}' },
+  'ruleCard.branchInvertHelp': {
+    en: "Negates only this branch's own match, not the whole rule.",
+    ua: 'Заперечує лише збіг цієї конкретної гілки, а не всього правила.',
+    ru: 'Отрицает только совпадение этой конкретной ветки, а не всего правила.',
+  },
+  'ruleCard.removeBranchAria': { en: 'Remove branch', ua: 'Видалити гілку', ru: 'Удалить ветку' },
 
   'condition.removeAria': { en: 'Remove condition', ua: 'Видалити умову', ru: 'Удалить условие' },
   'condition.matchesAutomatically': { en: 'Matches automatically.', ua: 'Збігається автоматично.', ru: 'Совпадает автоматически.' },
@@ -140,6 +178,7 @@ const DICT = {
 
   'common.direct': { en: 'Direct', ua: 'Напряму', ru: 'Напрямую' },
   'common.proxy': { en: 'Proxy', ua: 'Проксі', ru: 'Прокси' },
+  'common.reject': { en: 'Reject', ua: 'Відхилити', ru: 'Отклонить' },
 
   'output.heading': { en: '7. Output', ua: '7. Результат', ru: '7. Результат' },
   'output.emptyState': {
@@ -172,10 +211,43 @@ const DICT = {
     ru: 'Одно или несколько правил не имеют условий и будут отброшены из результата.',
   },
 
+  'importWarnings.heading': {
+    en: 'Not imported from pasted config',
+    ua: 'Не імпортовано з вставленого конфігу',
+    ru: 'Не импортировано из вставленного конфига',
+  },
+  'importWarnings.help': {
+    en: "These route.rule_set / route.rules entries from your pasted config don't map onto the rule builder below and will be dropped from the generated output unless you recreate them manually.",
+    ua: 'Ці записи route.rule_set / route.rules із вашого вставленого конфігу не вкладаються в конструктор правил нижче і будуть відкинуті зі згенерованого результату, якщо ви не відтворите їх вручну.',
+    ru: 'Эти записи route.rule_set / route.rules из вставленного вами конфига не укладываются в конструктор правил ниже и будут отброшены из сгенерированного результата, если вы не воссоздадите их вручную.',
+  },
+  'importWarnings.ruleSetsLabel': { en: 'Rule sets:', ua: 'Набори правил:', ru: 'Наборы правил:' },
+  'importWarnings.rulesLabel': { en: 'Rules:', ua: 'Правила:', ru: 'Правила:' },
+
   'condition.domain.label': { en: 'Domain (exact)', ua: 'Домен (точний)', ru: 'Домен (точный)' },
+  'condition.domain.help': {
+    en: 'Exact match only — does not include subdomains (use domain suffix for that).',
+    ua: 'Лише точний збіг — не включає піддомени (для цього використайте суфікс домену).',
+    ru: 'Только точное совпадение — не включает поддомены (для этого используйте суффикс домена).',
+  },
   'condition.domain_suffix.label': { en: 'Domain suffix', ua: 'Суфікс домену', ru: 'Суффикс домена' },
+  'condition.domain_suffix.help': {
+    en: 'Matches the domain itself and any of its subdomains, e.g. example.com also matches sub.example.com.',
+    ua: 'Збігається із самим доменом і будь-якими його піддоменами, напр. example.com також збігається з sub.example.com.',
+    ru: 'Совпадает с самим доменом и любыми его поддоменами, напр. example.com совпадает и с sub.example.com.',
+  },
   'condition.domain_keyword.label': { en: 'Domain keyword', ua: 'Ключове слово в домені', ru: 'Ключевое слово в домене' },
+  'condition.domain_keyword.help': {
+    en: 'Matches if this text appears anywhere in the domain name.',
+    ua: 'Збігається, якщо цей текст трапляється будь-де в імені домену.',
+    ru: 'Совпадает, если этот текст встречается где-либо в имени домена.',
+  },
   'condition.domain_regex.label': { en: 'Domain regex', ua: 'Regex домену', ru: 'Regex домена' },
+  'condition.domain_regex.help': {
+    en: "Matched against the full domain name using Go's RE2 regex syntax.",
+    ua: 'Зіставляється з повним іменем домену за синтаксисом регулярних виразів Go (RE2).',
+    ru: 'Сопоставляется с полным именем домена по синтаксису регулярных выражений Go (RE2).',
+  },
   'condition.rule_set.label': { en: 'Rule set (geosite/geoip)', ua: 'Набір правил (geosite/geoip)', ru: 'Набор правил (geosite/geoip)' },
   'condition.rule_set.help': {
     en: 'References a rule set defined below, fetched by sing-box from a remote .srs file.',
@@ -183,6 +255,11 @@ const DICT = {
     ru: 'Ссылается на набор правил, определённый ниже, который sing-box загружает из удалённого .srs-файла.',
   },
   'condition.ip_cidr.label': { en: 'IP CIDR', ua: 'IP CIDR', ru: 'IP CIDR' },
+  'condition.ip_cidr.help': {
+    en: 'Matches destination IPs in this range (e.g. 10.0.0.0/24) or an exact single IP.',
+    ua: 'Збігається з IP призначення в цьому діапазоні (напр. 10.0.0.0/24) або з окремою IP-адресою.',
+    ru: 'Совпадает с IP назначения в этом диапазоне (напр. 10.0.0.0/24) или с отдельным IP-адресом.',
+  },
   'condition.ip_is_private.label': { en: 'Private IP (LAN)', ua: 'Приватний IP (LAN)', ru: 'Приватный IP (LAN)' },
   'condition.ip_is_private.help': {
     en: 'Matches RFC1918/link-local destinations — no values needed, just pick an action.',
@@ -190,9 +267,29 @@ const DICT = {
     ru: 'Совпадает с адресатами RFC1918/link-local — значения не нужны, просто выберите действие.',
   },
   'condition.port.label': { en: 'Port', ua: 'Порт', ru: 'Порт' },
+  'condition.port.help': {
+    en: 'Matches an exact destination port, e.g. 443.',
+    ua: 'Збігається з точним портом призначення, напр. 443.',
+    ru: 'Совпадает с точным портом назначения, напр. 443.',
+  },
   'condition.port_range.label': { en: 'Port range', ua: 'Діапазон портів', ru: 'Диапазон портов' },
+  'condition.port_range.help': {
+    en: 'Matches a destination port range, e.g. 1000:2000 — open-ended ranges like :3000 or 4000: also work.',
+    ua: 'Збігається з діапазоном портів призначення, напр. 1000:2000 — відкриті діапазони на кшталт :3000 чи 4000: теж працюють.',
+    ru: 'Совпадает с диапазоном портов назначения, напр. 1000:2000 — открытые диапазоны вроде :3000 или 4000: тоже работают.',
+  },
   'condition.network.label': { en: 'Network', ua: 'Мережа', ru: 'Сеть' },
+  'condition.network.help': {
+    en: "Matches the connection's transport protocol.",
+    ua: "Збігається з транспортним протоколом з'єднання.",
+    ru: 'Совпадает с транспортным протоколом соединения.',
+  },
   'condition.protocol.label': { en: 'Protocol', ua: 'Протокол', ru: 'Протокол' },
+  'condition.protocol.help': {
+    en: 'Matches the application-layer protocol detected by the sniff rule ahead of your own rules.',
+    ua: "Збігається з протоколом прикладного рівня, який визначає правило sniff перед вашими правилами.",
+    ru: 'Совпадает с протоколом прикладного уровня, который определяет правило sniff перед вашими правилами.',
+  },
   'condition.process_name.label': { en: 'Process name', ua: "Ім'я процесу", ru: 'Имя процесса' },
   'condition.process_name.help': {
     en: 'Only works when sing-box runs as a full local client with OS process-list access. Target platforms: Windows and Linux. On Linux this needs root/CAP_NET_ADMIN — not available on a router or restricted environment.',
@@ -204,6 +301,16 @@ const DICT = {
     en: 'Same platform/permission caveat as process name.',
     ua: "Те саме застереження щодо платформи/прав, що й для імені процесу.",
     ru: 'То же предостережение по платформе/правам, что и для имени процесса.',
+  },
+  'condition.process_path_regex.label': {
+    en: 'Process path (regex)',
+    ua: 'Шлях до процесу (regex)',
+    ru: 'Путь к процессу (regex)',
+  },
+  'condition.process_path_regex.help': {
+    en: 'Matches the process path using a regular expression instead of an exact match. Same platform/permission caveat as process name.',
+    ua: 'Збігається зі шляхом до процесу за регулярним виразом замість точного збігу. Те саме застереження щодо платформи/прав, що й для імені процесу.',
+    ru: 'Совпадает с путём к процессу по регулярному выражению вместо точного совпадения. То же предостережение по платформе/правам, что и для имени процесса.',
   },
 } as const
 

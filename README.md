@@ -45,7 +45,25 @@ below.
   each rule combining any of: domain (exact/suffix/keyword/regex), rule sets
   (geosite/geoip `.srs`, both quick-add by category and custom URLs),
   IP CIDR, private IP (LAN), port/port range, network (tcp/udp), protocol,
-  process name/path (Windows/Linux only, needs root/`CAP_NET_ADMIN` on Linux)
+  process name/path/path-regex (Windows/Linux only, needs root/`CAP_NET_ADMIN`
+  on Linux).
+  A rule's action is direct/proxy/**reject** (drop the connection, no
+  outbound needed), the whole rule can be **inverted**, and a rule can
+  switch from a flat condition list to a **logical AND/OR** group of
+  independent branches (each with its own optional invert) — matching
+  sing-box's `type: logical` rules one level deep. Every condition type has
+  inline help text, and the less obvious controls (Simple/Logical, AND/OR,
+  Invert, and the action row) additionally carry a hover/focus tooltip
+  (ⓘ) explaining what they do
+- **Import existing rules from a pasted config** — if the pasted config's
+  `route.rules`/`route.rule_set` already has rules baked in, they're parsed
+  into the rule builder above (rule sets, conditions, action, invert,
+  logical AND/OR groups) instead of being silently discarded once the
+  output regenerates `route` from scratch. Anything that can't be
+  represented in the builder (nested logical groups, `local` rule sets,
+  outbounds other than the detected direct/proxy pair, etc.) is shown
+  as-is in a warning above the rule builder instead of disappearing
+  without explanation
 - **Rule-set category autocomplete** — geosite/geoip category names come
   from the backend's `/api/ruleset-categories` (which fetches the
   `SagerNet/sing-geosite`/`sing-geoip` GitHub repos and caches the result in

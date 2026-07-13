@@ -28,7 +28,7 @@ export const DEFAULT_CONFIG: SingBoxConfig = {
     {
       type: 'tun',
       tag: 'tun-in',
-      address: ['172.19.0.1/30', 'fdfe:dcba:9876::1/126'],
+      address: ['172.19.0.1/30'],
       auto_route: true,
       strict_route: true,
     },
