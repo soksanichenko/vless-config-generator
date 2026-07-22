@@ -3,6 +3,7 @@ import type { Action, Condition, ConditionType, FinalAction, Rule, RuleSetDef } 
 import type { VlessClient } from '../types/clients'
 import type { Region } from '../types/region'
 import type { MultiplexSettings } from '../types/multiplex'
+import type { SingboxTarget } from '../types/singboxTarget'
 import { buildRegionConfig } from './regionConfig'
 
 export interface BuildConfigInput {
@@ -16,6 +17,7 @@ export interface BuildConfigInput {
   selectedClient: VlessClient | null
   region: Region
   multiplex: MultiplexSettings
+  singboxTarget: SingboxTarget
 }
 
 /** Fields we control on the injected VLESS outbound; everything else on it is left as-is. */
@@ -179,7 +181,7 @@ export function buildOutputConfig(input: BuildConfigInput): SingBoxConfig {
   }
 
   const { dns, extraRuleSets, defaultDomainResolver, routeRules: regionRouteRules, needsIpResolve: regionNeedsIpResolve } =
-    buildRegionConfig(input.region, input.directTag, input.proxyTag)
+    buildRegionConfig(input.region, input.directTag, input.proxyTag, input.singboxTarget)
 
   // Required for domain/protocol-based rules to see anything at all, and for DNS
   // queries to actually go through the configured DNS servers instead of leaking.

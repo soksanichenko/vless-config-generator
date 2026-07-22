@@ -87,9 +87,12 @@ npm run dev
 ```
 
 Without the backend running locally, `/api/clients` and
-`/api/ruleset-categories` 404 — the client info card shows a load-error
-banner and the rule-set category input falls back to a bundled snapshot
-list; the rest of the UI still works.
+`/api/ruleset-categories` 404 — the client info card shows a "Log in" note
+(instead of autofilled credentials) and the rule-set category input falls
+back to a bundled snapshot list; the rest of the UI still works. In
+production, `/api/` (not `/`) is what actually requires a logged-in
+session — the generator page itself is public, paste-your-own-config usage
+never needs a login.
 
 ## Backend development
 

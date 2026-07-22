@@ -17,8 +17,10 @@ Browser-based sing-box routing-rule editor for VLESS clients on zelgray.work
      and `/api/ruleset-categories` (geosite/geoip category autocomplete,
      Redis-cached) to the frontend
    - serves `/login` + `/logout` (site login form, email + VLESS UUID) and
-     `/auth`, the nginx `auth_request` target that gates the main site
-     against the resulting session cookie
+     `/auth`, the nginx `auth_request` target that gates `/api/` (client
+     autofill, live rule-set category list) against the resulting session
+     cookie — the generator page itself (`/`) is not gated, so it works
+     without logging in
    - serves `/admin/login` + `/admin/logout` and `/admin/auth` (its own,
      independent nginx `auth_request` target), plus `/admin/`, a small
      server-rendered page to add, edit, or delete clients — each action
@@ -32,9 +34,9 @@ Browser-based sing-box routing-rule editor for VLESS clients on zelgray.work
    `{{ nginx_domain_custom_locations_path }}/vless-config-generator.conf`
    and the upstream config to
    `{{ nginx_custom_upstream_path }}/vless-config-generator-api.conf` —
-   `/`, `/api/`, and `/admin/` each go through `auth_request` against their
-   own backend endpoint (`/auth` or `/admin/auth`), redirecting to `/login`
-   or `/admin/login` on a 401
+   `/api/` and `/admin/` each go through `auth_request` against their own
+   backend endpoint (`/auth` or `/admin/auth`), redirecting to `/login` or
+   `/admin/login` on a 401; `/` (the static SPA) is served unauthenticated
 6. Purges the Cloudflare cache (when `cf_purge_cache: true`)
 
 The static frontend is served directly by nginx (`alias`, no proxy), the

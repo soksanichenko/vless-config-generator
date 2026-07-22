@@ -16,7 +16,12 @@ export function ClientInfo({ clients, selectedUuid, onSelect, loadError }: Props
     <div className="card">
       <h2>{t('client.heading')}</h2>
       {loadError && (
-        <div className="warning-banner">{t('client.loadError', { error: loadError })}</div>
+        <p className="help-text">
+          {t('client.loginHint')}{' '}
+          <a className="button" href="/login">
+            {t('client.login')}
+          </a>
+        </p>
       )}
       {!loadError && clients.length > 1 && (
         <div className="field">

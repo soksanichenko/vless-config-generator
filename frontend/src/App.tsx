@@ -7,6 +7,7 @@ import { RuleList } from './components/RuleList'
 import { DefaultOutboundToggle } from './components/DefaultOutboundToggle'
 import { RegionSelector } from './components/RegionSelector'
 import { MultiplexSettings } from './components/MultiplexSettings'
+import { SingboxTargetSelector } from './components/SingboxTargetSelector'
 import { OutputPanel } from './components/OutputPanel'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
 import { buildOutputConfig } from './lib/buildConfig'
@@ -19,6 +20,8 @@ import type { ClientsResponse, VlessClient } from './types/clients'
 import type { Region } from './types/region'
 import { DEFAULT_MULTIPLEX_SETTINGS } from './types/multiplex'
 import type { MultiplexSettings as MultiplexSettingsValue } from './types/multiplex'
+import { DEFAULT_SINGBOX_TARGET } from './types/singboxTarget'
+import type { SingboxTarget } from './types/singboxTarget'
 import { useLang } from './i18n/LangContext'
 
 export function App() {
@@ -48,6 +51,7 @@ export function App() {
   }>({ ruleSets: [], rules: [] })
   const [region, setRegion] = useState<Region>('default')
   const [multiplex, setMultiplex] = useState<MultiplexSettingsValue>(DEFAULT_MULTIPLEX_SETTINGS)
+  const [singboxTarget, setSingboxTarget] = useState<SingboxTarget>(DEFAULT_SINGBOX_TARGET)
 
   useEffect(() => {
     fetch('/api/clients')
@@ -142,6 +146,7 @@ export function App() {
       selectedClient: client,
       region,
       multiplex,
+      singboxTarget,
     })
   }, [
     parsedConfig,
@@ -154,6 +159,7 @@ export function App() {
     client,
     region,
     multiplex,
+    singboxTarget,
   ])
 
   return (
@@ -176,6 +182,8 @@ export function App() {
       <RegionSelector value={region} onChange={setRegion} />
 
       <MultiplexSettings value={multiplex} onChange={setMultiplex} />
+
+      <SingboxTargetSelector value={singboxTarget} onChange={setSingboxTarget} />
 
       <ConfigPaste value={configText} onChange={setConfigText} error={parseError} />
 

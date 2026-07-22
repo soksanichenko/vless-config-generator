@@ -19,11 +19,6 @@ const DICT = {
   },
 
   'client.heading': { en: '1. Client', ua: '1. Клієнт', ru: '1. Клиент' },
-  'client.loadError': {
-    en: "Could not load your client credentials ({error}). You can still build a config, but the proxy outbound's credentials won't be filled in automatically.",
-    ua: 'Не вдалося завантажити ваші дані клієнта ({error}). Ви можете продовжити збірку конфігу, але дані проксі-outbound не будуть підставлені автоматично.',
-    ru: 'Не удалось загрузить ваши данные клиента ({error}). Вы можете продолжить сборку конфига, но данные proxy-outbound не будут подставлены автоматически.',
-  },
   'client.loggedInAsPrefix': { en: 'Logged in as ', ua: 'Ви увійшли як ', ru: 'Вы вошли как ' },
   'client.loggedInAsSuffix': {
     en: ' — these credentials will be filled into the proxy outbound.',
@@ -31,6 +26,12 @@ const DICT = {
     ru: ' — эти данные будут подставлены в proxy-outbound.',
   },
   'client.logout': { en: 'Log out', ua: 'Вийти', ru: 'Выйти' },
+  'client.loginHint': {
+    en: "Want your own server address and credentials filled in automatically? Log in with your VLESS client's email:uuid. Not required — you can also just paste a config with credentials typed in by hand below.",
+    ua: 'Хочете, щоб адресу сервера й дані автоматично підставились? Увійдіть за email:uuid вашого VLESS-клієнта. Це не обов’язково — можна просто вставити конфіг із даними, вписаними вручну, нижче.',
+    ru: 'Хотите, чтобы адрес сервера и данные подставились автоматически? Войдите по email:uuid вашего VLESS-клиента. Это не обязательно — можно просто вставить конфиг с данными, вписанными вручную, ниже.',
+  },
+  'client.login': { en: 'Log in', ua: 'Увійти', ru: 'Войти' },
   'client.pickerLabel': {
     en: 'Credential',
     ua: 'Обліковий запис',
@@ -61,7 +62,25 @@ const DICT = {
   'multiplex.minStreams': { en: 'Min streams', ua: 'Мін. потоків', ru: 'Мин. потоков' },
   'multiplex.padding': { en: 'Padding', ua: 'Padding', ru: 'Padding' },
 
-  'configPaste.heading': { en: '4. Base config.json', ua: '4. Базовий config.json', ru: '4. Базовый config.json' },
+  'singboxTarget.heading': { en: '4. Sing-box version', ua: '4. Версія sing-box', ru: '4. Версия sing-box' },
+  'singboxTarget.help': {
+    en: 'Picks the DNS rule syntax used by the region profile above (Ukraine/Russia). "Stable" uses classic single-step rules (rule_set/ip_cidr matched directly against the query response) — works on any current sing-box release. "Alpha" uses evaluate/match_response two-step rules, which need sing-box 1.14.0 — not released as stable yet, only as alpha builds. Has no effect for the Default region.',
+    ua: 'Обирає синтаксис DNS-правил, що використовує профіль регіону вище (Україна/Росія). "Stable" використовує класичні одноетапні правила (rule_set/ip_cidr зіставляються напряму з відповіддю на запит) — працює на будь-якому поточному релізі sing-box. "Alpha" використовує двоетапні правила evaluate/match_response, які потребують sing-box 1.14.0 — ще не випущено як stable, лише як alpha-збірки. Не впливає на регіон Default.',
+    ru: 'Выбирает синтаксис DNS-правил, который использует профиль региона выше (Украина/Россия). "Stable" использует классические одноэтапные правила (rule_set/ip_cidr сопоставляются напрямую с ответом на запрос) — работает на любом текущем релизе sing-box. "Alpha" использует двухэтапные правила evaluate/match_response, которым нужен sing-box 1.14.0 — ещё не выпущен как stable, только как alpha-сборки. Не влияет на регион Default.',
+  },
+  'singboxTarget.label': { en: 'Target', ua: 'Ціль', ru: 'Цель' },
+  'singboxTarget.optionStable': {
+    en: 'Stable (classic DNS rules)',
+    ua: 'Stable (класичні DNS-правила)',
+    ru: 'Stable (классические DNS-правила)',
+  },
+  'singboxTarget.optionAlpha': {
+    en: 'Alpha 1.14+ (evaluate/match_response)',
+    ua: 'Alpha 1.14+ (evaluate/match_response)',
+    ru: 'Alpha 1.14+ (evaluate/match_response)',
+  },
+
+  'configPaste.heading': { en: '5. Base config.json', ua: '5. Базовий config.json', ru: '5. Базовый config.json' },
   'configPaste.helpPart1': {
     en: 'Paste your existing sing-box client config, or start from the default template below and edit it directly. Only the ',
     ua: 'Вставте наявний клієнтський конфіг sing-box або почніть із шаблону за замовчуванням нижче та редагуйте його напряму. Змінюється лише секція ',
@@ -105,7 +124,7 @@ const DICT = {
   'ruleSets.urlPlaceholder': { en: 'https://.../custom.srs', ua: 'https://.../custom.srs', ru: 'https://.../custom.srs' },
   'ruleSets.removeAria': { en: 'Remove {tag}', ua: 'Видалити {tag}', ru: 'Удалить {tag}' },
 
-  'ruleList.heading': { en: '5. Routing rules', ua: '5. Правила маршрутизації', ru: '5. Правила маршрутизации' },
+  'ruleList.heading': { en: '6. Routing rules', ua: '6. Правила маршрутизації', ru: '6. Правила маршрутизации' },
   'ruleList.help': {
     en: 'Matched top to bottom — the first matching rule wins. Drag the handle to reorder.',
     ua: 'Перевіряються згори вниз — перемагає перше правило, що збіглося. Перетягніть маркер, щоб змінити порядок.',
@@ -169,7 +188,7 @@ const DICT = {
   },
   'condition.commaSeparated': { en: '(comma-separated)', ua: '(через кому)', ru: '(через запятую)' },
 
-  'defaultOutbound.heading': { en: '6. Default outbound', ua: '6. Outbound за замовчуванням', ru: '6. Outbound по умолчанию' },
+  'defaultOutbound.heading': { en: '7. Default outbound', ua: '7. Outbound за замовчуванням', ru: '7. Outbound по умолчанию' },
   'defaultOutbound.help': {
     en: "Where traffic goes when no rule above matches. Pick one — there's no implicit default.",
     ua: 'Куди йде трафік, якщо жодне правило вище не збіглося. Оберіть одне — неявного значення за замовчуванням немає.',
@@ -180,7 +199,7 @@ const DICT = {
   'common.proxy': { en: 'Proxy', ua: 'Проксі', ru: 'Прокси' },
   'common.reject': { en: 'Reject', ua: 'Відхилити', ru: 'Отклонить' },
 
-  'output.heading': { en: '7. Output', ua: '7. Результат', ru: '7. Результат' },
+  'output.heading': { en: '8. Output', ua: '8. Результат', ru: '8. Результат' },
   'output.emptyState': {
     en: 'Paste a valid config above to see the output.',
     ua: 'Вставте коректний конфіг вище, щоб побачити результат.',

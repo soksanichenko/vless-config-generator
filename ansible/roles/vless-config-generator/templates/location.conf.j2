@@ -75,8 +75,6 @@ location /admin/ {
 }
 
 location / {
-    auth_request /internal/auth;
-    error_page 401 = @site_login;
     alias      /usr/share/nginx/html/static/vless-config-generator/;
     index      index.html;
     try_files  $uri $uri/ =404;

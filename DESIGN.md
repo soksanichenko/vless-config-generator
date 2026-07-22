@@ -196,6 +196,51 @@ pre-existing `dns`-level keys in the pasted config pass through untouched.
   resolve "correctly" (through the right DNS path) while the actual
   TCP/UDP connection still goes the wrong way and hits a block.
 
+## Sing-box version target (Stable / Alpha)
+
+The Ukraine/Russia region profiles (see "Region selection" above) need to
+re-route a DNS query based on which country's geoip range the resolved
+address falls into — a "resolve first, then route by the resolved IP"
+pattern sing-box only has two ways to express:
+
+- `evaluate` + `match_response` (probe once via one DNS server, then decide
+  which server actually answers based on the probed IP) — the more precise
+  primitive, but needs sing-box **1.14.0**, which as of this writing is only
+  released as alpha builds (`v1.14.0-alpha.*` on GitHub), not stable.
+- The older single-step "address filter" pattern (`rule_set`/`ip_cidr`
+  matched directly against a rule's own query response, its `server` field
+  doubling as both prober and answerer) — supported since sing-box
+  **1.8.0**/**1.9.0**, works on any current stable release, at the cost of
+  folding "who resolves" and "who answers" into the same server (loses the
+  original design's "probe via a neutral resolver, then answer via the
+  region-appropriate one" decoupling — see the Russia caveat below).
+
+Exposed as a `Stable`/`Alpha` dropdown (`frontend/src/types/
+singboxTarget.ts`, `frontend/src/components/SingboxTargetSelector.tsx`),
+threaded through `BuildConfigInput.singboxTarget` into `buildRegionConfig`
+(`frontend/src/lib/regionConfig.ts`), defaulting to `Stable` since that's
+what actually runs on a released sing-box today. Has no effect on the
+`Default` region, which has no geoip-based DNS rules to begin with.
+
+- **Ukraine** — `alpha` probes once via `dns-direct`, then re-queries
+  `dns-local`/`dns-remote` only once classified. `stable` checks
+  `geoip-ua` via `dns-local` and `geoip-ru` via `dns-remote` directly,
+  falling through to `dns-direct` if neither matches — an extra DNS round
+  trip for domains that are neither, but the same eventual routing outcome.
+- **Russia** — `alpha` probes via `dns-local`, and only re-queries
+  `dns-remote` if the resolved IP itself lands in `geoip-ru-blocked`.
+  `stable` can't decouple probe from answer: it checks `dns-local`'s own
+  answer against the blocklist directly, so a domain whose `dns-local`
+  answer is already blocked-looking is *kept* as-is rather than re-resolved
+  cleanly via `dns-remote` — the one real behavior gap between the two
+  targets (see the code comment in `regionConfig.ts` for the full
+  reasoning).
+- Verified via Context7 against sing-box's actual tagged docs (`v1.13.14`)
+  rather than training-data memory: `match_response`/`evaluate` are
+  undocumented before 1.14.0, and the address-filter mechanism ("items in
+  `ip_cidr` within included rule-sets also function as address filtering
+  fields") is confirmed as the pre-1.14 idiom for this exact pattern.
+
 ## Multiplexing (mux)
 
 Some ISPs (notably several Russian mobile carriers, per DPI/TSPU-related
@@ -528,11 +573,21 @@ implemented from for the full ground-truth investigation):
 
 ## Access control
 
-Client credentials (UUID, public key, short ID) are sensitive. Two
-independent gates now, deliberately not chained together — both
-cookie-session based, both enforced via nginx `auth_request`:
-- Main site (`/`, `/api/`): log in at `/login` with an existing client's
-  `email:uuid`, gets a `site_session` cookie checked against `/auth`.
+Client credentials (UUID, public key, short ID) are sensitive, but the
+generator UI itself isn't — it's a static rule builder that works from any
+config pasted into it. Two independent gates now, deliberately not chained
+together — both cookie-session based, both enforced via nginx
+`auth_request`:
+- `/api/`: log in at `/login` with an existing client's `email:uuid`, gets a
+  `site_session` cookie checked against `/auth`. `/` (the static SPA) is
+  **not** gated — superseded the original design where `/` and `/api/`
+  shared the same `auth_request`, so using the generator required a client
+  login even for someone pasting their own config with credentials typed in
+  by hand. Logged-out visitors just don't get `/api/clients` autofill — the
+  Client card shows a note explaining that and a "Log in" button
+  (`ClientInfo.tsx`) instead of a raw fetch-error banner, since "not logged
+  in" is now an expected, common state rather than a failure — or the live
+  rule-set category list (falls back to the bundled snapshot).
 - Admin panel (`/admin/`): log in at `/admin/login` with the operator
   credential sourced from two Infisical secrets under `/hosts/shared`
   (`vless-config-generator-admin-username`,
@@ -568,13 +623,16 @@ cookie-session based, both enforced via nginx `auth_request`:
 
 ## End-to-end UI flow (summary)
 
-1. Log in at `/login` with your client's `email:uuid` — your own server
-   params + credentials come along automatically, no manual entry.
+1. Optionally log in at `/login` with your client's `email:uuid` — your own
+   server params + credentials come along automatically, no manual entry.
+   Skip this and paste your own config with credentials filled in by hand
+   instead; the rest of the tool works the same either way.
 2. Paste an existing sing-box `config.json` as the base.
 3. Build/edit routing rules in the rule list (conditions + direct/proxy
    action, drag to reorder).
 4. Set the default outbound (direct/proxy toggle), the Region
-   (Default/Ukraine/Russia), and optionally enable multiplexing (mux) if
+   (Default/Ukraine/Russia — plus, for Ukraine/Russia, a Stable/Alpha
+   sing-box version target), and optionally enable multiplexing (mux) if
    your ISP caps concurrent TLS connections to one host.
 5. Get back the same config with `route` and `dns` replaced — download or
    copy.
@@ -709,10 +767,11 @@ cookie-session based, both enforced via nginx `auth_request`:
   `sources/templates/`). Deployed via `community.docker.docker_container`
   on the shared `docker_network`, alongside the existing static-frontend
   sync, in the same Ansible role (`ansible/roles/vless-config-generator/`).
-  Nginx routes `/`, `/api/`, and `/admin/` all through `auth_request`
-  against their respective backend endpoint, redirecting to `/login` or
-  `/admin/login` on 401 — see that role's `README.md` for the full
-  variable/tag reference.
+  Nginx routes `/api/` and `/admin/` through `auth_request` against their
+  respective backend endpoint, redirecting to `/login` or `/admin/login` on
+  401; `/` (the static SPA) is served unauthenticated — see "Access
+  control" above and that role's `README.md` for the full variable/tag
+  reference.
 - Multiplexing (`frontend/src/types/multiplex.ts`, `frontend/src/
   components/MultiplexSettings.tsx`, `applyMultiplexToOutbound` in
   `frontend/src/lib/buildConfig.ts`) — see "Multiplexing (mux)" above for
@@ -725,3 +784,7 @@ cookie-session based, both enforced via nginx `auth_request`:
   for the full rationale and the current gap (matching `route.rules` for
   geoip/blocklist routing are still added manually via the rule builder,
   not auto-injected).
+- Sing-box version target (`frontend/src/types/singboxTarget.ts`,
+  `frontend/src/components/SingboxTargetSelector.tsx`) picks between two
+  DNS rule syntaxes for the Ukraine/Russia region profiles — see "Sing-box
+  version target (Stable / Alpha)" above for the full rationale.

@@ -1,4 +1,5 @@
 import type { Region } from '../types/region'
+import type { SingboxTarget } from '../types/singboxTarget'
 
 export interface RegionConfigResult {
   dns: Record<string, unknown>
@@ -22,8 +23,37 @@ export interface RegionConfigResult {
  * redundantly alongside A/AAAA, adding latency for no benefit in this setup. */
 const BLOCK_HTTPS_SVCB_RULE = { query_type: [32, 33], action: 'predefined', rcode: 'NOERROR' }
 
-export function buildRegionConfig(region: Region, directTag: string, proxyTag: string): RegionConfigResult {
+export function buildRegionConfig(
+  region: Region,
+  directTag: string,
+  proxyTag: string,
+  singboxTarget: SingboxTarget,
+): RegionConfigResult {
   if (region === 'ua') {
+    // geosite-ua/geosite-ru don't exist as published .srs files, so domains can't be
+    // pre-sorted by suffix — resolve first, then re-route by which country's geoip the
+    // resolved address actually falls into. `alpha` probes once via dns-direct and only
+    // re-queries dns-local/dns-remote once classified (needs sing-box 1.14's evaluate/
+    // match_response). `stable` folds probe+answer into one query per candidate server —
+    // works on any current release, at the cost of an extra DNS round trip for domains
+    // that turn out to be neither UA nor RU.
+    const dnsRules =
+      singboxTarget === 'alpha'
+        ? [
+            BLOCK_HTTPS_SVCB_RULE,
+            { domain_suffix: '.lan', action: 'predefined', rcode: 'NOERROR' },
+            { action: 'evaluate', server: 'dns-direct' },
+            { match_response: true, rule_set: 'geoip-ua', action: 'route', server: 'dns-local' },
+            { match_response: true, rule_set: 'geoip-ru', action: 'route', server: 'dns-remote' },
+            { action: 'route', server: 'dns-direct' },
+          ]
+        : [
+            BLOCK_HTTPS_SVCB_RULE,
+            { domain_suffix: '.lan', action: 'predefined', rcode: 'NOERROR' },
+            { rule_set: 'geoip-ua', server: 'dns-local' },
+            { rule_set: 'geoip-ru', server: 'dns-remote' },
+            { action: 'route', server: 'dns-direct' },
+          ]
     return {
       dns: {
         servers: [
@@ -44,17 +74,7 @@ export function buildRegionConfig(region: Region, directTag: string, proxyTag: s
             domain_resolver: { server: 'dns-local', strategy: 'prefer_ipv4' },
           },
         ],
-        rules: [
-          BLOCK_HTTPS_SVCB_RULE,
-          { domain_suffix: '.lan', action: 'predefined', rcode: 'NOERROR' },
-          // geosite-ua/geosite-ru don't exist as published .srs files, so domains can't be
-          // pre-sorted by suffix — resolve via dns-direct first, then re-route the response
-          // by which country's geoip the resolved address actually falls into.
-          { action: 'evaluate', server: 'dns-direct' },
-          { match_response: true, rule_set: 'geoip-ua', action: 'route', server: 'dns-local' },
-          { match_response: true, rule_set: 'geoip-ru', action: 'route', server: 'dns-remote' },
-          { action: 'route', server: 'dns-direct' },
-        ],
+        rules: dnsRules,
         final: 'dns-direct',
       },
       extraRuleSets: [
@@ -105,6 +125,31 @@ export function buildRegionConfig(region: Region, directTag: string, proxyTag: s
   }
 
   if (region === 'ru') {
+    // Domains RKN blocks by name resolve straight through dns-remote. Everything else
+    // resolves locally by default. `alpha` probes once via dns-local and re-queries
+    // dns-remote only if the resolved IP itself falls into the (separately maintained)
+    // blocked-IP list — needs sing-box 1.14's evaluate/match_response to decouple the
+    // probe from the answer. `stable` can't decouple them: it checks dns-local's own
+    // answer against the blocked-IP list, so a domain whose dns-local answer is already
+    // blocked-looking is *kept* rather than re-resolved via dns-remote — no clean-answer
+    // fallback for name-unlisted domains, unlike the alpha variant.
+    const dnsRules =
+      singboxTarget === 'alpha'
+        ? [
+            BLOCK_HTTPS_SVCB_RULE,
+            { domain_suffix: '.lan', action: 'predefined', rcode: 'NOERROR' },
+            { rule_set: ['geosite-ru-blocked'], server: 'dns-remote' },
+            { action: 'evaluate', server: 'dns-local' },
+            { match_response: true, rule_set: 'geoip-ru-blocked', action: 'route', server: 'dns-remote' },
+            { action: 'route', server: 'dns-local' },
+          ]
+        : [
+            BLOCK_HTTPS_SVCB_RULE,
+            { domain_suffix: '.lan', action: 'predefined', rcode: 'NOERROR' },
+            { rule_set: ['geosite-ru-blocked'], server: 'dns-remote' },
+            { rule_set: 'geoip-ru-blocked', server: 'dns-local' },
+            { action: 'route', server: 'dns-local' },
+          ]
     return {
       dns: {
         servers: [
@@ -118,17 +163,7 @@ export function buildRegionConfig(region: Region, directTag: string, proxyTag: s
             detour: proxyTag,
           },
         ],
-        rules: [
-          BLOCK_HTTPS_SVCB_RULE,
-          { domain_suffix: '.lan', action: 'predefined', rcode: 'NOERROR' },
-          // Domains RKN blocks by name resolve straight through dns-remote. Everything
-          // else resolves locally first, then re-routes through dns-remote only if the
-          // resolved IP itself falls into the (separately maintained) blocked-IP list.
-          { rule_set: ['geosite-ru-blocked'], server: 'dns-remote' },
-          { action: 'evaluate', server: 'dns-local' },
-          { match_response: true, rule_set: 'geoip-ru-blocked', action: 'route', server: 'dns-remote' },
-          { action: 'route', server: 'dns-local' },
-        ],
+        rules: dnsRules,
         final: 'dns-local',
       },
       extraRuleSets: [

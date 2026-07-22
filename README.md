@@ -21,7 +21,10 @@ below.
   logged in as; one email can hold several credentials (e.g. one with
   `flow: xtls-rprx-vision`, another with an empty flow for a multiplex
   config), in which case a dropdown picks between them — never any other
-  account's credentials
+  account's credentials. Logging in is optional: skip it and paste a config
+  with credentials already filled in by hand instead — the rest of the tool
+  (rule builder, region, multiplex, sing-box version target) works the same
+  either way
 - **Admin panel** (`/admin/`) — add, edit, or delete VLESS clients from a
   browser instead of hand-editing `infra`'s config. Adding/editing a client
   picks its xray `flow` from a dropdown (`xtls-rprx-vision` / empty — pick
@@ -37,10 +40,13 @@ below.
   add/edit/remove is in flight. Gated by its own login (`/admin/login`),
   independent of the site login below — a bug in one can't lock you out of
   the other
-- **Site login via client credentials** — `vless-gen.zelgray.work` is
-  gated by nginx `auth_request` against the backend: log in at `/login`
-  with an existing client's email + VLESS UUID, gets you a signed session
-  cookie (`/logout` to end it)
+- **Site login via client credentials** — optional: log in at `/login` with
+  an existing client's email + VLESS UUID to get a signed session cookie
+  (`/logout` to end it), which auto-fills your own credentials into the
+  generator (see "Client credentials" above). The generator page itself is
+  public and works without logging in; only `/api/` (client autofill,
+  live rule-set category list) is gated by nginx `auth_request` against the
+  backend
 - **Routing rule builder** — drag-reorderable rule list (first match wins),
   each rule combining any of: domain (exact/suffix/keyword/regex), rule sets
   (geosite/geoip `.srs`, both quick-add by category and custom URLs),
@@ -89,6 +95,13 @@ below.
   the tunnel (via Quad9, not Cloudflare). Russia doesn't auto-add the
   matching `route` rules for its blocklist — add those by hand in the rule
   builder above to keep DNS and routing in sync
+- **Sing-box version target** (`Stable` / `Alpha`) — picks which DNS rule
+  syntax the Ukraine/Russia region profiles generate. `Stable` uses classic
+  single-step rules (`rule_set`/`ip_cidr` matched directly against the query
+  response), which work on any current sing-box release. `Alpha` uses
+  two-step `evaluate`/`match_response` rules, which need sing-box 1.14.0 —
+  not released as stable yet, only as alpha builds. Has no effect for the
+  Default region
 - **Syntax-highlighted JSON** — both the base-config editor and the output
   panel highlight JSON tokens as you type/view
 - **Output** — copy to clipboard or download the resulting `config.json`; a
@@ -135,9 +148,9 @@ npm run dev
 ```
 
 Without the backend running locally, `/api/clients` and
-`/api/ruleset-categories` 404 — the client info card shows a load-error
-banner and the rule-set category input falls back to its bundled snapshot
-list; the rest of the UI still works.
+`/api/ruleset-categories` 404 — the client info card shows a "Log in" note
+(instead of autofilled credentials) and the rule-set category input falls
+back to its bundled snapshot list; the rest of the UI still works.
 
 ## Backend development
 
