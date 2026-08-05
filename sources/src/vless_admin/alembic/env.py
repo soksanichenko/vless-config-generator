@@ -1,16 +1,16 @@
 """Alembic async environment."""
 
 import asyncio
+import os
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
-
 from vless_admin.config import AppConfig
 from vless_admin.models_db import Base
 
-_app_config = AppConfig.from_yaml("config.yaml")
+_app_config = AppConfig.from_yaml(os.getenv("CONFIG_PATH", "config.yaml"))
 
 alembic_config = context.config
 if alembic_config.config_file_name is not None:

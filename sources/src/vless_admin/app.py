@@ -259,9 +259,7 @@ async def _refresh_client_runs(clients: list) -> list:
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(
-        "login.html", {"request": request, "error": False}
-    )
+    return templates.TemplateResponse(request, "login.html", {"error": False})
 
 
 @app.post("/login")
@@ -271,7 +269,7 @@ async def login_submit(
     client = await verify_client_login(email, uuid)
     if client is None:
         return templates.TemplateResponse(
-            "login.html", {"request": request, "error": True}, status_code=401
+            request, "login.html", {"error": True}, status_code=401
         )
     response = RedirectResponse("/", status_code=303)
     await create_session(
@@ -350,9 +348,7 @@ async def admin_auth(request: Request) -> Response:
 
 @app.get("/admin/login", response_class=HTMLResponse)
 async def admin_login_form(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(
-        "admin/login.html", {"request": request, "error": False}
-    )
+    return templates.TemplateResponse(request, "admin/login.html", {"error": False})
 
 
 @app.post("/admin/login")
@@ -361,7 +357,7 @@ async def admin_login_submit(
 ) -> Response:
     if not verify_admin_login(username, password, config):
         return templates.TemplateResponse(
-            "admin/login.html", {"request": request, "error": True}, status_code=401
+            request, "admin/login.html", {"error": True}, status_code=401
         )
     response = RedirectResponse("/admin/", status_code=303)
     await create_session(
@@ -383,8 +379,9 @@ async def admin_logout(request: Request) -> Response:
 async def admin_dashboard(request: Request) -> HTMLResponse:
     clients = await _refresh_client_runs(await client_list())
     return templates.TemplateResponse(
+        request,
         "admin/dashboard.html",
-        {"request": request, "clients": clients, "github_repo": config.github_repo},
+        {"clients": clients, "github_repo": config.github_repo},
     )
 
 
