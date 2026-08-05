@@ -1,4 +1,14 @@
 ---
+- name: Install vless-config-generator frontend dependencies locally
+  ansible.builtin.command:
+    cmd: npm ci
+    chdir: "{{ vless_config_generator_local_source_dir }}/frontend"
+  delegate_to: localhost
+  become: no
+  changed_when: true
+  tags:
+    - vless-config-generator
+
 - name: Build vless-config-generator frontend locally
   ansible.builtin.command:
     cmd: npm run build
