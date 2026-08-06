@@ -35,7 +35,7 @@ async def _fetch_from_github(http: httpx.AsyncClient, kind: str) -> list[str]:
     tree_response.raise_for_status()
     tree = tree_response.json()["tree"]
 
-    pattern = re.compile(rf"^{kind}-(.+)\.srs$")
+    pattern = re.compile(rf"^{re.escape(kind)}-(.+)\.srs$")
     categories = sorted(
         {match.group(1) for entry in tree if (match := pattern.match(entry["path"]))}
     )
