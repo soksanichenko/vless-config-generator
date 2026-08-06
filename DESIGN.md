@@ -580,10 +580,14 @@ together — both cookie-session based, both enforced via nginx
 `auth_request`:
 - `/api/`: log in at `/login` with an existing client's `email:uuid`, gets a
   `site_session` cookie checked against `/auth`. `/` (the static SPA) is
-  **not** gated — superseded the original design where `/` and `/api/`
-  shared the same `auth_request`, so using the generator required a client
-  login even for someone pasting their own config with credentials typed in
-  by hand. Logged-out visitors just don't get `/api/clients` autofill — the
+  **not** gated by this site-specific login — superseded the original
+  design where `/` and `/api/` shared the same `auth_request`, so using the
+  generator required a client login even for someone pasting their own
+  config with credentials typed in by hand. (`/` did later gain a separate,
+  unrelated Discord SSO gate — see "Deployment shape" below — layered on
+  top of, not replacing, this reasoning: it still doesn't require the
+  site's own client login.) Logged-out visitors just don't get
+  `/api/clients` autofill — the
   Client card shows a note explaining that and a "Log in" button
   (`ClientInfo.tsx`) instead of a raw fetch-error banner, since "not logged
   in" is now an expected, common state rather than a failure — or the live
@@ -620,6 +624,10 @@ together — both cookie-session based, both enforced via nginx
   something to wire in. Given the Basic Auth requirement and that this is a
   distinct standalone tool, a subdomain (e.g. `vless-gen.zelgray.work`) is the
   more likely fit, similar to `library.zelgray.work` — not finalized.
+- **Discord SSO gate on `/`** — added later, layered on top of (not
+  replacing) this site's own `/api/`/`/admin/` auth: `location /` also
+  carries `auth_request` against `meow-elite-club-portal`'s `/auth`, see
+  `infra`'s `docs/portal-architecture.md` and this role's `README.md`.
 
 ## End-to-end UI flow (summary)
 
@@ -769,7 +777,9 @@ together — both cookie-session based, both enforced via nginx
   sync, in the same Ansible role (`ansible/roles/vless-config-generator/`).
   Nginx routes `/api/` and `/admin/` through `auth_request` against their
   respective backend endpoint, redirecting to `/login` or `/admin/login` on
-  401; `/` (the static SPA) is served unauthenticated — see "Access
+  401; `/` (the static SPA) goes through a separate Discord SSO gate
+  (`meow-elite-club-portal`, layered on top of this site's own login, added
+  later — see `infra`'s `docs/portal-architecture.md`) — see "Access
   control" above and that role's `README.md` for the full variable/tag
   reference.
 - Multiplexing (`frontend/src/types/multiplex.ts`, `frontend/src/

@@ -19,8 +19,7 @@ Browser-based sing-box routing-rule editor for VLESS clients on zelgray.work
    - serves `/login` + `/logout` (site login form, email + VLESS UUID) and
      `/auth`, the nginx `auth_request` target that gates `/api/` (client
      autofill, live rule-set category list) against the resulting session
-     cookie — the generator page itself (`/`) is not gated, so it works
-     without logging in
+     cookie
    - serves `/admin/login` + `/admin/logout` and `/admin/auth` (its own,
      independent nginx `auth_request` target), plus `/admin/`, a small
      server-rendered page to add, edit, or delete clients — each action
@@ -36,7 +35,8 @@ Browser-based sing-box routing-rule editor for VLESS clients on zelgray.work
    `{{ nginx_custom_upstream_path }}/vless-config-generator-api.conf` —
    `/api/` and `/admin/` each go through `auth_request` against their own
    backend endpoint (`/auth` or `/admin/auth`), redirecting to `/login` or
-   `/admin/login` on a 401; `/` (the static SPA) is served unauthenticated
+   `/admin/login` on a 401; `/` (the static SPA) goes through the Discord
+   SSO gate (`meow-elite-club-portal`), see below
 6. Purges the Cloudflare cache (when `cf_purge_cache: true`)
 
 The static frontend is served directly by nginx (`alias`, no proxy), the
@@ -45,6 +45,19 @@ same as before; only `/api/`, `/admin/`, `/login`, `/logout`, and the
 container. There's still no compose file — the API container is deployed
 directly via `community.docker.docker_container`, on the same shared
 Docker network and shared Postgres/Redis containers `hotline-listing` uses.
+
+**Discord SSO gate on top of the site's own login**: `location /` also
+carries `auth_request /internal/zw-auth` against `meow-elite-club-portal`
+(see `docs/portal-architecture.md` in `infra`) — `X-Service-Slug: vless-gen`
+must match a `GatedService` row created via the portal's `/admin/services`.
+Only `/` is gated this way; nginx allows exactly one `auth_request` per
+location, so it can't be stacked onto `/api/`/`/admin/` without replacing
+their own existing `auth_request`. In the normal browser flow this is
+equivalent to gating the whole site (the SPA always loads from `/` first,
+then calls `/api/`/`/admin/`) — the one gap is a client that already holds
+a stolen/replayed vless-gen session cookie hitting `/api/`/`/admin/`
+directly, bypassing Discord entirely. Verified against a real `nginx:1.26`
+image that the two auth mechanisms don't interfere with each other.
 
 ## Variables
 
@@ -73,6 +86,8 @@ Docker network and shared Postgres/Redis containers `hotline-listing` uses.
 | `nginx_html_path` | `{{ nginx_volumes_path }}/html` | Nginx's html volume root on the host |
 | `nginx_domain_custom_locations_path` | `{{ nginx_confd_path }}/{{ vless_config_generator_domain }}-custom-locations` | Per-domain location snippets dir (created by infra's nginx role once `host_domains` includes this subdomain) |
 | `nginx_custom_upstream_path` | `{{ nginx_confd_path }}/custom-upstream` | Shared custom-upstream dir (infra's nginx role) |
+| `meow_elite_club_portal_upstream_name` | `meow_elite_club_portal_upstream` | Nginx upstream name for the Discord SSO gate's `/auth` and `/bridge/consume` endpoints |
+| `vless_config_generator_service_slug` | `vless-gen` | `X-Service-Slug` sent to `/auth` — must match the `slug` of the `GatedService` row created for this service via `/admin/services` |
 
 ## Tags
 

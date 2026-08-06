@@ -32,6 +32,14 @@ vless_config_generator_github_workflow_file: "add-vless-client.yml"
 vless_config_generator_github_remove_workflow_file: "remove-vless-client.yml"
 vless_config_generator_github_update_workflow_file: "update-vless-client.yml"
 
+# Discord SSO gate (meow-elite-club-portal): nginx upstream name for the
+# portal's /auth and /bridge/consume endpoints, and the X-Service-Slug this
+# service is registered under via /admin/services (see location.conf.j2).
+# Must match the `slug` of the GatedService row an admin creates for this
+# service — a mismatch fails every request closed.
+meow_elite_club_portal_upstream_name: 'meow_elite_club_portal_upstream'
+vless_config_generator_service_slug: 'vless-gen'
+
 # Nginx — defaults match infra's nginx role
 nginx_docker_container_name: 'nginx-server'
 nginx_volumes_path: "{{ docker_volumes_directory }}/nginx"
