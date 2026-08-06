@@ -66,12 +66,45 @@ location /admin/logout {
 
 location /admin/ {
     auth_request /internal/admin-auth;
-    error_page 401 = @admin_login;
+    error_page 401 = @admin_login_or_discord;
     proxy_pass http://{{ vless_config_generator_api_upstream_name }}/admin/;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $client_real_ip;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+# OR path into /admin/: if vless-gen's own admin_session check above just
+# failed, ALSO try a Discord admin-level grant for this service before
+# giving up — nginx allows only one auth_request per location, so this
+# second check has to live in its own named location, reached via the
+# error_page above rather than stacked onto /admin/ itself. Neither check
+# passing (401 or 403 from /internal/zw-admin-auth — no session at all, or
+# a session that just isn't admin-level here) falls through to vless-gen's
+# own @admin_login, not Discord: someone with the shared admin credential
+# but no Discord grant should still get in exactly as before.
+location @admin_login_or_discord {
+    auth_request /internal/zw-admin-auth;
+    error_page 401 403 = @admin_login;
+    # No URI part on proxy_pass here — nginx forbids one on a named
+    # location's proxy_pass ("proxy_pass cannot have URI part ... inside
+    # named location"). The original request URI (already /admin/...) is
+    # forwarded unchanged, which is equivalent to /admin/'s own proxy_pass.
+    proxy_pass http://{{ vless_config_generator_api_upstream_name }};
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $client_real_ip;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+location = /internal/zw-admin-auth {
+    internal;
+    proxy_pass http://{{ meow_elite_club_portal_upstream_name }}/auth;
+    proxy_pass_request_body off;
+    proxy_set_header Content-Length "";
+    proxy_set_header Cookie $http_cookie;
+    proxy_set_header X-Service-Slug "{{ vless_config_generator_service_slug }}";
+    proxy_set_header X-Require-Level "admin";
 }
 
 # Discord SSO gate (meow-elite-club-portal) on top of the site's own login —

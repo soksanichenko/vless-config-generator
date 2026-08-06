@@ -59,6 +59,33 @@ a stolen/replayed vless-gen session cookie hitting `/api/`/`/admin/`
 directly, bypassing Discord entirely. Verified against a real `nginx:1.26`
 image that the two auth mechanisms don't interfere with each other.
 
+**A Discord admin-level grant also unlocks `/admin/` itself**, as an
+alternative to vless-gen's own admin login, not a replacement for it.
+`/admin/`'s existing `auth_request /internal/admin-auth` is untouched and
+still checked first; only its `error_page 401` target changed, from
+`@admin_login` directly to a new named location, `@admin_login_or_discord`,
+which tries a second check — `/internal/zw-admin-auth` (the portal's
+`/auth`, with `X-Service-Slug: vless-gen` **and** `X-Require-Level: admin`,
+so a Discord member-level grant for this service doesn't qualify) — before
+falling through to `@admin_login` (vless-gen's own login page, not
+Discord) on a 401 or 403. This is pure OR logic: either credential alone is
+enough, and nothing changes for someone with only the shared admin
+credential and no Discord grant. Two nginx quirks this relies on, both
+confirmed against a real `nginx:1.26` image:
+- `proxy_pass` inside a **named** location (`@admin_login_or_discord`)
+  cannot carry a URI part — unlike `/admin/`'s own `proxy_pass .../admin/`,
+  it forwards the original request URI (already `/admin/...`) unchanged,
+  which has the same effect.
+- nginx's `recursive_error_pages` is `off` by default, which silently
+  swallows a location's own `error_page` when that location was itself
+  entered via *another* location's `error_page` — exactly the case here
+  (`/admin/`'s error_page leads into `@admin_login_or_discord`, which has
+  its own error_page). Without it, a failed Discord check returned a raw
+  401/403 instead of falling through to `@admin_login`. Fixed by turning it
+  on globally in infra's shared `nginx` role (`nginx.conf.j2`, `http{}`
+  scope) rather than per-domain, since it's needed at the location where
+  the chain terminates, not where it starts.
+
 ## Variables
 
 | Variable | Default | Description |

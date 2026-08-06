@@ -628,6 +628,12 @@ together — both cookie-session based, both enforced via nginx
   replacing) this site's own `/api/`/`/admin/` auth: `location /` also
   carries `auth_request` against `meow-elite-club-portal`'s `/auth`, see
   `infra`'s `docs/portal-architecture.md` and this role's `README.md`.
+- **Discord admin grant as an alternative into `/admin/`** — added later
+  still: a portal-side admin-level `ServiceAccess` grant for this service
+  now also opens `/admin/`, as an OR alongside (not a replacement for) the
+  operator credential above — nginx's `error_page`-chained OR pattern, see
+  this role's `README.md` for the two nginx quirks (`proxy_pass` in a named
+  location, `recursive_error_pages`) it depends on.
 
 ## End-to-end UI flow (summary)
 
