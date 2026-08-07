@@ -53,6 +53,7 @@
       padding: 16px;
       margin-bottom: 16px;
     }
+    .table-scroll { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
     th { color: var(--text-dim); font-weight: 600; }
@@ -117,19 +118,21 @@
   </div>
 
   <div class="card">
-    <table>
-      <thead>
-        <tr><th>Email</th><th>UUID</th><th>Flow</th><th>Status</th><th>Workflow run</th><th>Created</th><th>Discord ID</th><th></th></tr>
-      </thead>
-      <tbody>
-        {% for client in clients %}
-        {{ client_row(client, github_repo, discord_ids_by_email.get(client.email, [])) }}
-        {% endfor %}
-        {% if not clients %}
-        <tr><td colspan="8">No clients yet.</td></tr>
-        {% endif %}
-      </tbody>
-    </table>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Email</th><th>UUID</th><th>Flow</th><th>Status</th><th>Workflow run</th><th>Created</th><th>Discord ID</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for client in clients %}
+          {{ client_row(client, github_repo, discord_ids_by_email.get(client.email, [])) }}
+          {% endfor %}
+          {% if not clients %}
+          <tr><td colspan="8">No clients yet.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <div class="card">
