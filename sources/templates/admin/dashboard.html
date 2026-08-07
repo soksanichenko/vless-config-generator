@@ -71,7 +71,7 @@
     a.run-failure:hover, a.run-cancelled:hover, a.run-timed_out:hover {
       text-decoration: underline;
     }
-    input[type="email"], select {
+    input[type="email"], input[type="text"], select {
       background: #0d0f13;
       border: 1px solid var(--border);
       color: var(--text);
@@ -95,6 +95,8 @@
     button.danger { color: var(--danger); border-color: var(--danger); }
     form.add-client { display: flex; gap: 0.5rem; flex-wrap: wrap; }
     form.add-client input[type="email"] { flex: 1; min-width: 200px; }
+    form.link-discord { display: flex; gap: 0.35rem; margin-top: 0.35rem; }
+    form.link-discord input[type="text"] { width: 110px; }
     td.actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
     .help-list { margin: 0; padding-left: 1.1rem; color: var(--text-dim); font-size: 0.82rem; }
     .help-list li { margin-bottom: 8px; }
@@ -117,14 +119,14 @@
   <div class="card">
     <table>
       <thead>
-        <tr><th>Email</th><th>UUID</th><th>Flow</th><th>Status</th><th>Workflow run</th><th>Created</th><th></th></tr>
+        <tr><th>Email</th><th>UUID</th><th>Flow</th><th>Status</th><th>Workflow run</th><th>Created</th><th>Discord ID</th><th></th></tr>
       </thead>
       <tbody>
         {% for client in clients %}
-        {{ client_row(client, github_repo) }}
+        {{ client_row(client, github_repo, discord_ids_by_email.get(client.email, [])) }}
         {% endfor %}
         {% if not clients %}
-        <tr><td colspan="7">No clients yet.</td></tr>
+        <tr><td colspan="8">No clients yet.</td></tr>
         {% endif %}
       </tbody>
     </table>
@@ -179,6 +181,14 @@
       <li>
         <strong>Save</strong> stays disabled until you actually change
         that row's email or flow.
+      </li>
+      <li>
+        <strong>Discord ID</strong> lets a Discord-authenticated visitor
+        skip the site's own email+UUID login on repeat visits. It links
+        itself automatically the first time someone logs in normally
+        while Discord-authenticated — enter it here only to link it
+        yourself ahead of time, e.g. for a client you already know the
+        Discord account for.
       </li>
     </ul>
   </div>

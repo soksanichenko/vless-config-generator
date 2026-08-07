@@ -1,4 +1,4 @@
-{% macro client_row(client, github_repo) %}
+{% macro client_row(client, github_repo, discord_ids=[]) %}
 {% set editable = client.status in ("pending", "dispatched") %}
 <tr data-client-id="{{ client.id }}" data-editable="{{ 'true' if editable else 'false' }}">
   <td>
@@ -23,6 +23,17 @@
   <td class="js-status status-{{ client.status }}">{{ client.status }}</td>
   <td class="js-run">{{ run_cell_html(client, github_repo) | safe }}</td>
   <td>{{ client.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+  <td>
+    {% if discord_ids %}
+    <code>{{ discord_ids | join(', ') }}</code>
+    {% else %}
+    &mdash;
+    {% endif %}
+    <form method="post" action="/admin/clients/{{ client.id }}/link-discord" class="link-discord">
+      <input type="text" name="discord_user_id" placeholder="Discord user id" pattern="[0-9]+" title="Numeric Discord user id" required>
+      <button type="submit">Link</button>
+    </form>
+  </td>
   <td class="actions">
     {% if editable %}
     <button type="submit" form="edit-{{ client.id }}" class="js-save">Save</button>

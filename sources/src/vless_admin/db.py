@@ -247,6 +247,15 @@ async def discord_link_get_email(discord_user_id: str) -> str | None:
         return result.scalar_one_or_none()
 
 
+async def discord_link_list() -> list[DiscordLink]:
+    """Return every Discord link, most recently linked first."""
+    async with get_session() as session:
+        result = await session.execute(
+            select(DiscordLink).order_by(DiscordLink.linked_at.desc())
+        )
+        return list(result.scalars())
+
+
 async def discord_link_upsert(discord_user_id: str, email: str) -> None:
     """Create the link for a Discord user id, or repoint it to `email` if one
     already exists."""

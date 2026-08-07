@@ -110,6 +110,21 @@ in under a different account overwrites it; a wrong email/uuid neither
 logs in nor creates a link; a request with no Discord header at all falls
 through to the normal form.
 
+**An operator can also link a Discord id manually**, from the admin
+dashboard's "Discord ID" column on each client row (`POST
+/admin/clients/{id}/link-discord`) — the same `DiscordLink` upsert
+`POST /login` does implicitly, just triggered by the operator instead of
+the account holder's own login. For an operator who already knows which
+Discord user a given credential was handed to, this skips waiting on
+that person to log in once themselves first. Deliberately **not**
+matched automatically by comparing a Discord-verified email against
+`Client.email`, even though the portal can supply one (`X-Discord-Email`,
+see `meow-elite-club-portal`'s `/auth`) — unlike `Client.email`, which is
+just a label, `client_uuid` is the actual bearer-token-like proof of
+account ownership here, and auto-matching by email alone would grant
+access to anyone whose Discord email happens to match that label,
+without ever having been handed the real secret.
+
 **Self-registers with the portal on every deploy** (`POST
 /api/services/register`, Bearer-token auth via
 `meow_elite_club_portal_service_registration_token` — see

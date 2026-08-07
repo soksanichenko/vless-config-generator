@@ -36,6 +36,7 @@ from .db import (
     client_set_run_id,
     client_update,
     client_update_run_status,
+    discord_link_list,
     discord_link_upsert,
     init_db,
 )
@@ -113,6 +114,16 @@ _client_row_macro = templates.env.get_template(
 
 def _is_editable(client) -> bool:
     return client.status in _EDITABLE_STATUSES
+
+
+async def _discord_ids_by_email() -> dict[str, list[str]]:
+    """Group every `DiscordLink` by account email, for the dashboard's
+    "Discord ID" column — an account can have more than one link (e.g. a
+    shared credential), so this is a list, not a single value."""
+    grouped: dict[str, list[str]] = {}
+    for link in await discord_link_list():
+        grouped.setdefault(link.email, []).append(link.discord_user_id)
+    return grouped
 
 
 @asynccontextmanager
@@ -413,7 +424,11 @@ async def admin_dashboard(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "admin/dashboard.html",
-        {"clients": clients, "github_repo": config.github_repo},
+        {
+            "clients": clients,
+            "github_repo": config.github_repo,
+            "discord_ids_by_email": await _discord_ids_by_email(),
+        },
     )
 
 
@@ -426,6 +441,7 @@ async def admin_clients_status() -> JSONResponse:
     the whole page — keeps in-progress edits/scroll position/etc. intact.
     """
     clients = await _refresh_client_runs(await client_list())
+    discord_ids_by_email = await _discord_ids_by_email()
     return JSONResponse(
         {
             "clients": [
@@ -435,7 +451,13 @@ async def admin_clients_status() -> JSONResponse:
                     "run_html": _run_cell_html(client, config.github_repo),
                     "in_flight": _is_in_flight(client),
                     "editable": _is_editable(client),
-                    "row_html": str(_client_row_macro(client, config.github_repo)),
+                    "row_html": str(
+                        _client_row_macro(
+                            client,
+                            config.github_repo,
+                            discord_ids_by_email.get(client.email, []),
+                        )
+                    ),
                 }
                 for client in clients
             ]
@@ -501,6 +523,26 @@ async def admin_edit_client(
         client.email = email
         client.flow = flow
         await _dispatch_update_and_mark(client)
+    return RedirectResponse("/admin/", status_code=303)
+
+
+@app.post("/admin/clients/{client_id}/link-discord")
+async def admin_link_discord(
+    client_id: UUID, discord_user_id: str = Form(...)
+) -> RedirectResponse:
+    """Manually link a Discord user id to a client's account (by email) —
+    for an operator who already knows which Discord user a credential was
+    handed to, without waiting for that person to log in themselves first
+    (see `auth.py`'s implicit self-service linking via `/login`, which
+    this is an alternative to, not a replacement for — either path writes
+    the same `DiscordLink` row).
+    """
+    client = await client_get(client_id)
+    if client is None:
+        raise HTTPException(status_code=404, detail="Client not found")
+    discord_user_id = discord_user_id.strip()
+    if discord_user_id:
+        await discord_link_upsert(discord_user_id, client.email)
     return RedirectResponse("/admin/", status_code=303)
 
 
