@@ -125,6 +125,28 @@ account ownership here, and auto-matching by email alone would grant
 access to anyone whose Discord email happens to match that label,
 without ever having been handed the real secret.
 
+**A top-right "logged in as" menu** on the SPA shows the Discord avatar
+and a Log out button, plus an Admin panel link when the visitor actually
+has rights to `/admin/` (mirrors the OR-chain above exactly: a Discord
+admin-level grant *or* a currently valid operator `admin_session` — the
+link only ever appears when it would actually work). Fed by a new
+`GET /api/whoami`, gated the same way as `/login` (its own
+`auth_request /internal/zw-auth`, not `/api/`'s site-only check — an
+exact-match location takes precedence over the `/api/` prefix). Log out
+(`POST /logout`) now also clears the `zw_session` cookie the portal set
+on `zelgray.work`, in addition to the site login it already cleared — a
+purely local action (per the earlier "local domain logout only"
+decision), not a real Discord sign-out: since `portal_session` on
+meow-elite.club is untouched, the very next Discord-gated page load
+re-bridges a fresh `zw_session` automatically. That's intentional, not
+a bug — the simplest way to force-refresh a stale one (see the SSO
+debugging story this came out of), useful even though it means "log
+out" doesn't leave you logged out. Verified against a real Postgres
+(`/api/whoami`'s `isAdmin` for all four grant-source combinations;
+`/logout`'s `Set-Cookie` clears both cookies) and a real `nginx:1.26`
+image (`/api/whoami` forwards the right headers for admin/member/no
+session).
+
 **Self-registers with the portal on every deploy** (`POST
 /api/services/register`, Bearer-token auth via
 `meow_elite_club_portal_service_registration_token` — see

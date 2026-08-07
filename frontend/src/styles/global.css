@@ -59,6 +59,55 @@ h1 {
   letter-spacing: 0.02em;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 6px 4px 4px;
+}
+
+.user-menu img,
+.user-menu .avatar-placeholder {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: block;
+  flex-shrink: 0;
+}
+
+.user-menu .avatar-placeholder {
+  background: var(--border);
+}
+
+.user-menu form {
+  margin: 0;
+}
+
+.user-menu button,
+.user-menu a.button {
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.user-menu button:hover,
+.user-menu a.button:hover {
+  color: var(--text);
+  border-color: transparent;
+}
+
 .card {
   background: var(--panel);
   border: 1px solid var(--border);

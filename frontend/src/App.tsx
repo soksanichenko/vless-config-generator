@@ -10,6 +10,7 @@ import { MultiplexSettings } from './components/MultiplexSettings'
 import { SingboxTargetSelector } from './components/SingboxTargetSelector'
 import { OutputPanel } from './components/OutputPanel'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
+import { UserMenu } from './components/UserMenu'
 import { buildOutputConfig } from './lib/buildConfig'
 import { DEFAULT_CONFIG_TEXT } from './lib/defaultConfig'
 import { parseExistingRoute } from './lib/parseRoute'
@@ -169,7 +170,10 @@ export function App() {
           <h1>{t('app.title')}</h1>
           <p className="subtitle">{t('app.subtitle')}</p>
         </div>
-        <LanguageSwitcher value={lang} onChange={setLang} />
+        <div className="header-actions">
+          <LanguageSwitcher value={lang} onChange={setLang} />
+          <UserMenu />
+        </div>
       </div>
 
       <ClientInfo

@@ -39,6 +39,8 @@ const DICT = {
   },
   'client.pickerNoFlow': { en: 'empty flow', ua: 'без flow', ru: 'без flow' },
 
+  'userMenu.admin': { en: 'Admin panel', ua: 'Адмінка', ru: 'Админка' },
+
   'region.heading': { en: '2. Region', ua: '2. Регіон', ru: '2. Регион' },
   'region.help': {
     en: 'Picks a routing profile, affecting both the generated `dns` section and (for Ukraine) structural `route` rules ahead of your own. Ukraine resolves domains locally by default, routes lookups whose resolved IP is Russian through the proxy, and routes known CDN ranges direct; Russia resolves locally by default and routes only RKN-blocked domains through the proxy via DNS (matching `route` rules for those aren\'t added automatically — add them above). Default is plain Cloudflare DoH with no region-specific routing.',

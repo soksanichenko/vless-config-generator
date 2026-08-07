@@ -323,8 +323,22 @@ async def login_submit(
 
 @app.post("/logout")
 async def logout(request: Request) -> Response:
+    """Clears both the site login (if any) and the Discord-bridged
+    `zw_session` cookie the portal sets on this domain — a purely local
+    action, per this repo's own README. Not a real Discord logout: as
+    long as `portal_session` is still valid on meow-elite.club, the next
+    page load (including the redirect below) re-bridges a fresh
+    `zw_session` automatically. That's a feature, not a bug — it's the
+    simplest way to force-refresh a stale one (see the SSO debugging
+    story in infra's memory), not a way to actually sign out of Discord.
+    We only own this domain's cookie, not the server-side session row
+    the portal's own DB holds for it — clearing the cookie is enough to
+    stop this browser from presenting it, which is all "local logout"
+    means here.
+    """
     response = RedirectResponse("/login", status_code=303)
     await destroy_session(response, request.cookies.get(SITE_COOKIE_NAME), kind="site")
+    response.delete_cookie("zw_session", domain="zelgray.work", path="/")
     return response
 
 
@@ -352,6 +366,30 @@ async def api_clients(request: Request) -> JSONResponse:
                 }
                 for client in clients
             ]
+        }
+    )
+
+
+@app.get("/api/whoami")
+async def api_whoami(request: Request) -> JSONResponse:
+    """Discord identity for the top-right user menu — `X-Discord-User-Id`/
+    `X-Discord-Avatar-Url`/`X-Discord-Access-Level` are forwarded by
+    nginx's own `auth_request` against the portal (see this role's
+    `location.conf.j2`; reusing the same gate `/` already sits behind, not
+    a new check). `is_admin` reflects both paths that already unlock
+    `/admin/` — a Discord admin-level grant for this service, or a
+    currently valid operator `admin_session` — so the menu's admin link
+    only ever appears when it would actually work.
+    """
+    admin_username = await get_admin_from_session(
+        request.cookies.get(ADMIN_COOKIE_NAME)
+    )
+    return JSONResponse(
+        {
+            "discordUserId": request.headers.get("X-Discord-User-Id"),
+            "avatarUrl": request.headers.get("X-Discord-Avatar-Url"),
+            "isAdmin": admin_username is not None
+            or request.headers.get("X-Discord-Access-Level") == "admin",
         }
     )
 

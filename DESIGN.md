@@ -643,6 +643,13 @@ together — both cookie-session based, both enforced via nginx
   or by matching emails — a client's `email` field is an account label,
   not necessarily the Discord account's own email. See this role's
   `README.md`.
+- **Top-right Discord user menu (avatar, admin link, log out)** — added
+  once the portal started exposing `X-Discord-Avatar-Url`/
+  `X-Discord-Access-Level` on `/auth`. New `GET /api/whoami` (gated the
+  same as `/login`) feeds it; `/logout` now also drops the `zw_session`
+  cookie, a local-only action since `portal_session` staying valid means
+  the next Discord-gated load just re-bridges anyway. See this role's
+  `README.md`.
 
 ## End-to-end UI flow (summary)
 

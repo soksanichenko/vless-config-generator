@@ -58,6 +58,23 @@ location /api/ {
     proxy_set_header X-Forwarded-Proto $scheme;
 }
 
+# Exact match takes precedence over the /api/ prefix above — gated the
+# same as `/login` (Discord, not the site's own auth_request) since this
+# feeds the top-right user menu's Discord identity, not anything
+# site-login-specific.
+location = /api/whoami {
+    auth_request /internal/zw-auth;
+    auth_request_set $discord_user_id $upstream_http_x_discord_user_id;
+    auth_request_set $discord_avatar_url $upstream_http_x_discord_avatar_url;
+    auth_request_set $discord_access_level $upstream_http_x_discord_access_level;
+    error_page 401 = @zw_login;
+    proxy_pass http://{{ vless_config_generator_api_upstream_name }}/api/whoami;
+    proxy_set_header Host $host;
+    proxy_set_header X-Discord-User-Id $discord_user_id;
+    proxy_set_header X-Discord-Avatar-Url $discord_avatar_url;
+    proxy_set_header X-Discord-Access-Level $discord_access_level;
+}
+
 location /admin/login {
     proxy_pass http://{{ vless_config_generator_api_upstream_name }}/admin/login;
     proxy_set_header Host $host;
