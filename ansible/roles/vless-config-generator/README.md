@@ -86,6 +86,14 @@ confirmed against a real `nginx:1.26` image:
   scope) rather than per-domain, since it's needed at the location where
   the chain terminates, not where it starts.
 
+**Self-registers with the portal on every deploy** (`POST
+/api/services/register`, Bearer-token auth via
+`meow_elite_club_portal_service_registration_token` — see
+`meow-elite-club-portal`'s own role README) — creates or updates its
+`GatedService` row from `vless_config_generator_service_slug`/
+`vless_config_generator_domain` instead of that slug also being
+hand-typed into `/admin/services`.
+
 ## Variables
 
 | Variable | Default | Description |
@@ -114,7 +122,8 @@ confirmed against a real `nginx:1.26` image:
 | `nginx_domain_custom_locations_path` | `{{ nginx_confd_path }}/{{ vless_config_generator_domain }}-custom-locations` | Per-domain location snippets dir (created by infra's nginx role once `host_domains` includes this subdomain) |
 | `nginx_custom_upstream_path` | `{{ nginx_confd_path }}/custom-upstream` | Shared custom-upstream dir (infra's nginx role) |
 | `meow_elite_club_portal_upstream_name` | `meow_elite_club_portal_upstream` | Nginx upstream name for the Discord SSO gate's `/auth` and `/bridge/consume` endpoints |
-| `vless_config_generator_service_slug` | `vless-gen` | `X-Service-Slug` sent to `/auth` — must match the `slug` of the `GatedService` row created for this service via `/admin/services` |
+| `vless_config_generator_service_slug` | `vless-gen` | `X-Service-Slug` sent to `/auth`; also the `slug` this role self-registers as its `GatedService` row |
+| `meow_elite_club_portal_service_registration_token` | *(from Infisical `/hosts/shared` `meow-elite-club-portal-service-registration-token`)* | Bearer token for `POST /api/services/register` |
 
 ## Tags
 

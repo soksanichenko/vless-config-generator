@@ -20,4 +20,21 @@
   tags:
     - vless-config-generator
     - vless-config-generator-nginx
+
+- name: Register vless-config-generator with the Discord SSO portal
+  ansible.builtin.uri:
+    url: https://meow-elite.club/api/services/register
+    method: POST
+    headers:
+      Authorization: "Bearer {{ meow_elite_club_portal_service_registration_token }}"
+    body_format: json
+    body:
+      slug: "{{ vless_config_generator_service_slug }}"
+      name: "VLESS config generator"
+      url: "https://{{ vless_config_generator_domain }}/"
+    status_code: [200]
+  no_log: true
+  tags:
+    - vless-config-generator
+    - vless-config-generator-nginx
 ...
