@@ -27,7 +27,7 @@
       color: var(--text);
     }
     .page {
-      max-width: 960px;
+      max-width: 1400px;
       margin: 0 auto;
       padding: 24px 16px 64px;
     }
@@ -98,6 +98,17 @@
     form.add-client input[type="email"] { flex: 1; min-width: 200px; }
     form.link-discord { display: flex; gap: 0.35rem; margin-top: 0.35rem; }
     form.link-discord input[type="text"] { width: 110px; }
+    .header-actions { display: flex; align-items: center; gap: 0.75rem; }
+    .user-menu {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 999px;
+      padding: 4px 6px 4px 4px;
+    }
+    .user-menu img {
+      width: 24px; height: 24px; border-radius: 50%; display: block; flex-shrink: 0;
+    }
+    .user-menu form { margin: 0; }
+    .user-menu button { padding: 4px 8px; font-size: 0.8rem; }
     td.actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
     .help-list { margin: 0; padding-left: 1.1rem; color: var(--text-dim); font-size: 0.82rem; }
     .help-list li { margin-bottom: 8px; }
@@ -112,9 +123,19 @@
       <a href="/">&larr; Back to generator</a>
       <h1>VLESS clients</h1>
     </div>
-    <form method="post" action="/admin/logout">
-      <button type="submit">Log out</button>
-    </form>
+    <div class="header-actions">
+      {% if avatar_url %}
+      <div class="user-menu">
+        <img src="{{ avatar_url }}" alt="">
+        <form method="post" action="/logout">
+          <button type="submit">Log out (Discord)</button>
+        </form>
+      </div>
+      {% endif %}
+      <form method="post" action="/admin/logout">
+        <button type="submit">Log out</button>
+      </form>
+    </div>
   </div>
 
   <div class="card">

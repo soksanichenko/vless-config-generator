@@ -466,6 +466,7 @@ async def admin_dashboard(request: Request) -> HTMLResponse:
             "clients": clients,
             "github_repo": config.github_repo,
             "discord_ids_by_email": await _discord_ids_by_email(),
+            "avatar_url": request.headers.get("X-Discord-Avatar-Url"),
         },
     )
 

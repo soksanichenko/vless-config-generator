@@ -147,6 +147,22 @@ out" doesn't leave you logged out. Verified against a real Postgres
 image (`/api/whoami` forwards the right headers for admin/member/no
 session).
 
+**The admin dashboard (`admin/dashboard.html`) shows the same avatar +
+Discord-logout pair**, alongside (not replacing) the existing operator
+`/admin/logout` button — but only when reached via the Discord
+admin-level path (`@admin_login_or_discord`, which now also captures
+and forwards `X-Discord-Avatar-Url`). Reached via the operator's own
+`admin_session` instead, nginx never touches `/internal/zw-admin-auth`
+at all for that request — there's no Discord identity to show, so the
+menu is omitted entirely rather than showing a placeholder for someone
+who may not even have a Discord session in this browser. The dashboard
+card's `max-width` was also widened (960px → 1400px) so the client
+table's columns, including "Discord ID", fit without needing the
+horizontal scroll added earlier. Verified against a real Postgres
+(menu present/absent matches the header, operator logout unaffected
+either way) and a real `nginx:1.26` image (avatar forwarded only on
+the Discord path, absent on the operator-credential path).
+
 **Self-registers with the portal on every deploy** (`POST
 /api/services/register`, Bearer-token auth via
 `meow_elite_club_portal_service_registration_token` — see

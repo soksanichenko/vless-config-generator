@@ -112,6 +112,7 @@ location /admin/ {
 # but no Discord grant should still get in exactly as before.
 location @admin_login_or_discord {
     auth_request /internal/zw-admin-auth;
+    auth_request_set $discord_avatar_url $upstream_http_x_discord_avatar_url;
     error_page 401 403 = @admin_login;
     # No URI part on proxy_pass here — nginx forbids one on a named
     # location's proxy_pass ("proxy_pass cannot have URI part ... inside
@@ -122,6 +123,7 @@ location @admin_login_or_discord {
     proxy_set_header X-Real-IP $client_real_ip;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Discord-Avatar-Url $discord_avatar_url;
 }
 
 location = /internal/zw-admin-auth {
