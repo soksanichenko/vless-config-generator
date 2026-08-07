@@ -22,12 +22,22 @@ location @admin_login {
     return 302 /admin/login;
 }
 
+# Gated the same as `/` (any Discord grant, see the front-door location
+# below) rather than left open — reaching `/login` at all in the normal
+# flow already implies passing that gate first (the SPA it's linked from
+# is itself behind it), and this also lets the backend silently sign a
+# Discord-authenticated visitor into an already-linked account without
+# the email+uuid form (see app.py's login_form/login_submit).
 location = /login {
+    auth_request /internal/zw-auth;
+    auth_request_set $discord_user_id $upstream_http_x_discord_user_id;
+    error_page 401 = @zw_login;
     proxy_pass http://{{ vless_config_generator_api_upstream_name }}/login;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $client_real_ip;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Discord-User-Id $discord_user_id;
 }
 
 location = /logout {

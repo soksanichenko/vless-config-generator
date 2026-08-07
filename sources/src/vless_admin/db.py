@@ -5,10 +5,11 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import delete, insert, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy_utils import create_database, database_exists
 
-from .models_db import Client, Session
+from .models_db import Client, DiscordLink, Session
 
 logger = logging.getLogger(__name__)
 
@@ -231,6 +232,31 @@ async def client_update_run_status(
             update(Client)
             .where(Client.id == client_id)
             .values(github_run_status=status, github_run_conclusion=conclusion)
+        )
+        await session.commit()
+
+
+async def discord_link_get_email(discord_user_id: str) -> str | None:
+    """Return the account email linked to a Discord user id, or None."""
+    async with get_session() as session:
+        result = await session.execute(
+            select(DiscordLink.email).where(
+                DiscordLink.discord_user_id == discord_user_id
+            )
+        )
+        return result.scalar_one_or_none()
+
+
+async def discord_link_upsert(discord_user_id: str, email: str) -> None:
+    """Create the link for a Discord user id, or repoint it to `email` if one
+    already exists."""
+    async with get_session() as session:
+        await session.execute(
+            pg_insert(DiscordLink)
+            .values(discord_user_id=discord_user_id, email=email)
+            .on_conflict_do_update(
+                index_elements=["discord_user_id"], set_={"email": email}
+            )
         )
         await session.commit()
 

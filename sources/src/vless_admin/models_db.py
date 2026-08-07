@@ -74,6 +74,28 @@ class Client(Base):
     )
 
 
+class DiscordLink(Base):
+    """Links a Discord user id to a site-login account (`Client.email`).
+
+    Established implicitly the first time someone logs in normally
+    (email+`client_uuid`) while already Discord-authenticated (see
+    `app.py`'s `login_submit`) — not a separate consent step, and not
+    matched by email, since a client's `email` field is just an account
+    label chosen when the credential was created, not necessarily a real
+    address matching the Discord account's own email. One row per Discord
+    user (`discord_user_id` is the primary key); logging in under a
+    different account later overwrites it.
+    """
+
+    __tablename__ = "discord_links"
+
+    discord_user_id: MappedColumn[str] = mapped_column(String, primary_key=True)
+    email: MappedColumn[str] = mapped_column(String, nullable=False)
+    linked_at: MappedColumn[DateTime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class Session(Base):
     """A server-side login session, backing both the site and admin logins.
 

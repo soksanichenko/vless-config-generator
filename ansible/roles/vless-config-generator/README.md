@@ -86,6 +86,30 @@ confirmed against a real `nginx:1.26` image:
   scope) rather than per-domain, since it's needed at the location where
   the chain terminates, not where it starts.
 
+**A Discord login can also silently sign into the site's own login**,
+skipping the email+`client_uuid` form on repeat visits — full federation,
+not just a gate, like Grafana's `auth.proxy`. Unlike Grafana, there's no
+account-matching-by-email here: a `Client.email` is just a label chosen
+when the credential was created, not necessarily the Discord account's
+own (possibly unset/unverified) email, so nothing tries to compare them.
+Instead, `/login` is now gated the same as `/` (`auth_request
+/internal/zw-auth`, `X-Discord-User-Id` captured via `auth_request_set`
+and forwarded to the backend) — reaching it at all in the normal flow
+already implies passing that gate first, since the SPA it's linked from
+is itself behind it. The backend does the rest, in `models_db.DiscordLink`
+(`discord_user_id` → `Client.email`, one row per Discord user):
+`POST /login`'s existing email+uuid check, which already proves account
+ownership, now also links the caller's Discord identity to that account
+if one was forwarded; `GET /login` checks for an existing link first and,
+if found (and its account still has a login-allowed-status client),
+signs the visitor straight in and skips the form entirely. Logging in
+under a different account later just overwrites the link. Verified
+against a real Postgres: first login creates the link; a subsequent
+visit with no `site_session` cookie auto-signs in via the link; relogging
+in under a different account overwrites it; a wrong email/uuid neither
+logs in nor creates a link; a request with no Discord header at all falls
+through to the normal form.
+
 **Self-registers with the portal on every deploy** (`POST
 /api/services/register`, Bearer-token auth via
 `meow_elite_club_portal_service_registration_token` — see

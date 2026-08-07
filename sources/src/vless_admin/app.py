@@ -15,6 +15,7 @@ from markupsafe import escape
 
 from .auth import (
     get_admin_from_session,
+    get_clients_for_discord,
     get_clients_from_session,
     verify_admin_login,
     verify_client_login,
@@ -35,6 +36,7 @@ from .db import (
     client_set_run_id,
     client_update,
     client_update_run_status,
+    discord_link_upsert,
     init_db,
 )
 from .github_categories import get_ruleset_categories
@@ -258,7 +260,26 @@ async def _refresh_client_runs(clients: list) -> list:
 
 
 @app.get("/login", response_class=HTMLResponse)
-async def login_form(request: Request) -> HTMLResponse:
+async def login_form(request: Request) -> Response:
+    """Silently signs a Discord-authenticated visitor straight into their
+    linked site account, if one exists (see `login_submit`'s implicit
+    linking) — skips the email+uuid form entirely. `X-Discord-User-Id` is
+    only present because nginx now gates `/login` behind the same Discord
+    SSO check as `/` (see this role's `location.conf.j2`); it's always
+    absent for a request that somehow reaches this without going through
+    that gate, so this just falls through to the normal form below.
+    """
+    discord_user_id = request.headers.get("X-Discord-User-Id")
+    clients = await get_clients_for_discord(discord_user_id)
+    if clients:
+        response = RedirectResponse("/", status_code=303)
+        await create_session(
+            response,
+            kind="site",
+            subject=clients[0].email,
+            cookie_secure=config.cookie_secure,
+        )
+        return response
     return templates.TemplateResponse(request, "login.html", {"error": False})
 
 
@@ -266,11 +287,22 @@ async def login_form(request: Request) -> HTMLResponse:
 async def login_submit(
     request: Request, email: str = Form(...), uuid: str = Form(...)
 ) -> Response:
+    """On success, also links the caller's Discord identity (if present) to
+    this account — see `models_db.DiscordLink` — so a future visit skips
+    this form via `login_form`'s silent auto-login. Not matched by email:
+    a client's `email` field is just an account label, not necessarily the
+    same address as the Discord account's own (possibly unset/unverified)
+    email, so proving ownership here is what establishes the link, not any
+    string comparison.
+    """
     client = await verify_client_login(email, uuid)
     if client is None:
         return templates.TemplateResponse(
             request, "login.html", {"error": True}, status_code=401
         )
+    discord_user_id = request.headers.get("X-Discord-User-Id")
+    if discord_user_id:
+        await discord_link_upsert(discord_user_id, client.email)
     response = RedirectResponse("/", status_code=303)
     await create_session(
         response, kind="site", subject=client.email, cookie_secure=config.cookie_secure

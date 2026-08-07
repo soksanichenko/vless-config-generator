@@ -9,7 +9,7 @@ import hmac
 import logging
 
 from .config import AppConfig
-from .db import client_list_by_email
+from .db import client_list_by_email, discord_link_get_email
 from .models_db import Client
 from .sessions import resolve_session
 
@@ -50,6 +50,24 @@ async def get_clients_from_session(cookie_value: str | None) -> list[Client]:
     frontend offer a picker between them.
     """
     email = await resolve_session(cookie_value, kind="site")
+    if email is None:
+        return []
+    return [
+        candidate
+        for candidate in await client_list_by_email(email)
+        if candidate.status in _LOGIN_ALLOWED_STATUSES
+    ]
+
+
+async def get_clients_for_discord(discord_user_id: str | None) -> list[Client]:
+    """Return every still-valid Client for the account linked to a Discord
+    user id, or `[]` if unlinked, no longer valid, or `discord_user_id` is
+    None — lets `GET /login` silently sign a Discord-authenticated visitor
+    back into their site account without asking for email+uuid again.
+    """
+    if not discord_user_id:
+        return []
+    email = await discord_link_get_email(discord_user_id)
     if email is None:
         return []
     return [

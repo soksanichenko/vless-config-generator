@@ -634,6 +634,15 @@ together — both cookie-session based, both enforced via nginx
   operator credential above — nginx's `error_page`-chained OR pattern, see
   this role's `README.md` for the two nginx quirks (`proxy_pass` in a named
   location, `recursive_error_pages`) it depends on.
+- **Discord login also federates into the site's own login** — added
+  later still, this time on the client-facing side rather than `/admin/`:
+  a `DiscordLink` row (`discord_user_id` → `Client.email`) lets a repeat
+  Discord-authenticated visitor skip the email+`client_uuid` form
+  entirely. Established implicitly by the existing form itself (which
+  already proves account ownership) rather than a separate consent step
+  or by matching emails — a client's `email` field is an account label,
+  not necessarily the Discord account's own email. See this role's
+  `README.md`.
 
 ## End-to-end UI flow (summary)
 
