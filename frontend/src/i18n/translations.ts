@@ -32,6 +32,31 @@ const DICT = {
     ru: 'Хотите, чтобы адрес сервера и данные подставились автоматически? Войдите по email:uuid вашего VLESS-клиента. Это не обязательно — можно просто вставить конфиг с данными, вписанными вручную, ниже.',
   },
   'client.login': { en: 'Log in', ua: 'Увійти', ru: 'Войти' },
+  'client.generateHint': {
+    en: "Don't have credentials yet?",
+    ua: 'Ще немає власних даних?',
+    ru: 'Ещё нет своих данных?',
+  },
+  'client.generateButton': {
+    en: 'Generate my credentials',
+    ua: 'Згенерувати свої дані',
+    ru: 'Сгенерировать свои данные',
+  },
+  'client.generating': {
+    en: 'Generating your credentials…',
+    ua: 'Генеруємо ваші дані…',
+    ru: 'Генерируем ваши данные…',
+  },
+  'client.provisioning': {
+    en: 'Credentials created — waiting for the server to pick them up. This can take up to a minute; the page will update automatically.',
+    ua: 'Дані створено — очікуємо, поки сервер їх підхопить. Це може зайняти до хвилини, сторінка оновиться сама.',
+    ru: 'Данные созданы — ждём, пока сервер их подхватит. Это может занять до минуты, страница обновится сама.',
+  },
+  'client.generateError': {
+    en: 'Could not generate credentials — please try again in a moment.',
+    ua: 'Не вдалося згенерувати дані — спробуйте ще раз за хвилину.',
+    ru: 'Не удалось сгенерировать данные — попробуйте ещё раз через минуту.',
+  },
   'client.pickerLabel': {
     en: 'Credential',
     ua: 'Обліковий запис',

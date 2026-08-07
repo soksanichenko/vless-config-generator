@@ -18,6 +18,7 @@ import { listOutbounds } from './types/singbox'
 import type { SingBoxConfig } from './types/singbox'
 import type { FinalAction, Rule, RuleSetDef } from './types/rules'
 import type { ClientsResponse, VlessClient } from './types/clients'
+import type { Whoami } from './types/whoami'
 import type { Region } from './types/region'
 import { DEFAULT_MULTIPLEX_SETTINGS } from './types/multiplex'
 import type { MultiplexSettings as MultiplexSettingsValue } from './types/multiplex'
@@ -30,6 +31,10 @@ export function App() {
   const [clients, setClients] = useState<VlessClient[]>([])
   const [selectedUuid, setSelectedUuid] = useState<string | null>(null)
   const [clientError, setClientError] = useState<string | null>(null)
+  const [canGenerateCredentials, setCanGenerateCredentials] = useState(false)
+  const [generateStatus, setGenerateStatus] = useState<
+    'idle' | 'generating' | 'provisioning' | 'error'
+  >('idle')
   const client = useMemo(
     () => clients.find((candidate) => candidate.uuid === selectedUuid) ?? null,
     [clients, selectedUuid],
@@ -54,18 +59,63 @@ export function App() {
   const [multiplex, setMultiplex] = useState<MultiplexSettingsValue>(DEFAULT_MULTIPLEX_SETTINGS)
   const [singboxTarget, setSingboxTarget] = useState<SingboxTarget>(DEFAULT_SINGBOX_TARGET)
 
+  async function loadClients(): Promise<VlessClient[]> {
+    const response = await fetch('/api/clients')
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const data = (await response.json()) as ClientsResponse
+    setClients(data.clients)
+    setSelectedUuid((current) => current ?? data.clients[0]?.uuid ?? null)
+    return data.clients
+  }
+
   useEffect(() => {
-    fetch('/api/clients')
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        return response.json() as Promise<ClientsResponse>
-      })
-      .then((data) => {
-        setClients(data.clients)
-        setSelectedUuid(data.clients[0]?.uuid ?? null)
-      })
-      .catch((error: unknown) => setClientError(error instanceof Error ? error.message : String(error)))
+    loadClients().catch((error: unknown) =>
+      setClientError(error instanceof Error ? error.message : String(error)),
+    )
   }, [])
+
+  useEffect(() => {
+    fetch('/api/whoami')
+      .then((response) => (response.ok ? (response.json() as Promise<Whoami>) : null))
+      .then((data) => setCanGenerateCredentials(data?.canGenerateCredentials ?? false))
+      .catch(() => setCanGenerateCredentials(false))
+  }, [])
+
+  async function handleGenerateCredentials() {
+    setGenerateStatus('generating')
+    try {
+      const response = await fetch('/api/self-service/generate', { method: 'POST' })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    } catch (error: unknown) {
+      setGenerateStatus('error')
+      setClientError(error instanceof Error ? error.message : String(error))
+      return
+    }
+    setCanGenerateCredentials(false)
+    setGenerateStatus('provisioning')
+
+    // The new client starts out "pending" (see vless_admin.auth's
+    // _LOGIN_ALLOWED_STATUSES) until the infra add-client GitHub Actions
+    // workflow this endpoint dispatched confirms — same asynchronous
+    // window the admin panel's own "Add client" already has, just polled
+    // from the SPA side instead of a manual page reload. Same 5s cadence
+    // as the admin dashboard's own status poll.
+    for (let attempt = 0; attempt < 12; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 5000))
+      try {
+        const found = await loadClients()
+        if (found.length > 0) {
+          setClientError(null)
+          setGenerateStatus('idle')
+          return
+        }
+      } catch {
+        // keep polling — a transient failure here shouldn't abandon the wait
+      }
+    }
+    // Still not provisioned after a minute — leave status as 'provisioning'
+    // rather than 'error': generation itself succeeded, this is just slow.
+  }
 
   useEffect(() => {
     const trimmed = configText.trim()
@@ -184,6 +234,9 @@ export function App() {
         selectedUuid={selectedUuid}
         onSelect={setSelectedUuid}
         loadError={clientError}
+        canGenerateCredentials={canGenerateCredentials}
+        generateStatus={generateStatus}
+        onGenerateCredentials={handleGenerateCredentials}
       />
 
       <RegionSelector value={region} onChange={setRegion} />

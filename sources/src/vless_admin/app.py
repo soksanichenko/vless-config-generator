@@ -36,6 +36,7 @@ from .db import (
     client_set_run_id,
     client_update,
     client_update_run_status,
+    discord_link_get_email,
     discord_link_list,
     discord_link_upsert,
     init_db,
@@ -380,18 +381,80 @@ async def api_whoami(request: Request) -> JSONResponse:
     `/admin/` — a Discord admin-level grant for this service, or a
     currently valid operator `admin_session` — so the menu's admin link
     only ever appears when it would actually work.
+
+    `canGenerateCredentials` additionally requires the portal's per-service
+    self-service toggle (`X-Service-Self-Service-Enabled`, see
+    `/admin/services` in meow-elite-club-portal) AND that this Discord
+    identity has no linked client yet — true only when "generate my
+    credentials" (see `POST /api/self-service/generate`) would actually
+    succeed right now.
     """
     admin_username = await get_admin_from_session(
         request.cookies.get(ADMIN_COOKIE_NAME)
     )
+    discord_user_id = request.headers.get("X-Discord-User-Id")
+    self_service_enabled = (
+        request.headers.get("X-Service-Self-Service-Enabled") == "true"
+    )
+    already_linked = (
+        discord_user_id is not None
+        and await discord_link_get_email(discord_user_id) is not None
+    )
     return JSONResponse(
         {
-            "discordUserId": request.headers.get("X-Discord-User-Id"),
+            "discordUserId": discord_user_id,
             "avatarUrl": request.headers.get("X-Discord-Avatar-Url"),
             "isAdmin": admin_username is not None
             or request.headers.get("X-Discord-Access-Level") == "admin",
+            "canGenerateCredentials": bool(discord_user_id)
+            and self_service_enabled
+            and not already_linked,
         }
     )
+
+
+@app.post("/api/self-service/generate")
+async def api_self_service_generate(request: Request) -> Response:
+    """Self-service credential creation: same client_create + infra
+    add-client GitHub Actions workflow the admin panel's "Add client" uses
+    (see `_dispatch_add_and_mark`), triggered by the Discord user
+    themselves instead of an operator. Only reachable when the portal's
+    per-service self-service toggle is on for this service (see
+    `/admin/services` in meow-elite-club-portal) — that's what
+    `X-Service-Self-Service-Enabled` reflects, forwarded on this same
+    request by nginx's own `auth_request` (see this role's
+    `location.conf.j2`), same gate `/api/whoami` already sits behind.
+
+    The new client's `email` is a synthetic label
+    (`discord-<id>@self-service.local`) rather than the account's actual
+    Discord email — matches models_db.Client's own docstring (`email`
+    identifies the *account*, not necessarily a real address) and avoids
+    depending on the optional `email` OAuth scope. Immediately linked to
+    the caller (so `login_form`'s silent auto-login recognizes it on
+    future visits) and immediately signed into a site session on this
+    same response, so the SPA can use it right away without a second
+    round trip through `/login`.
+    """
+    if request.headers.get("X-Service-Self-Service-Enabled") != "true":
+        return JSONResponse({"error": "self-service disabled"}, status_code=403)
+    discord_user_id = request.headers.get("X-Discord-User-Id")
+    if not discord_user_id:
+        return JSONResponse({"error": "not authenticated"}, status_code=401)
+    if await discord_link_get_email(discord_user_id) is not None:
+        return JSONResponse({"error": "already have credentials"}, status_code=409)
+
+    email = f"discord-{discord_user_id}@self-service.local"
+    client = await client_create(email, "xtls-rprx-vision")
+    await discord_link_upsert(discord_user_id, email)
+    await _dispatch_add_and_mark(client)
+
+    response = JSONResponse(
+        {"email": client.email, "clientUuid": str(client.client_uuid)}
+    )
+    await create_session(
+        response, kind="site", subject=client.email, cookie_secure=config.cookie_secure
+    )
+    return response
 
 
 @app.get("/api/ruleset-categories")
