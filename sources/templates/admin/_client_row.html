@@ -30,23 +30,23 @@
     &mdash;
     {% endif %}
     <form method="post" action="/admin/clients/{{ client.id }}/link-discord" class="link-discord">
-      <input type="text" name="discord_user_id" placeholder="Discord user id" pattern="[0-9]+" title="Numeric Discord user id" required>
-      <button type="submit">Link</button>
+      <input type="text" name="discord_user_id" data-i18n-placeholder="discord_id_placeholder" placeholder="Discord user id" pattern="[0-9]+" data-i18n-title="discord_id_title" title="Numeric Discord user id" required>
+      <button type="submit" data-i18n="link_button">Link</button>
     </form>
   </td>
   <td class="actions">
     {% if editable %}
-    <button type="submit" form="edit-{{ client.id }}" class="js-save">Save</button>
+    <button type="submit" form="edit-{{ client.id }}" class="js-save" data-i18n="save">Save</button>
     {% endif %}
     {% if client.status in ("pending", "pending_removal", "pending_update") or client.github_run_conclusion == "failure" %}
     <form method="post" action="/admin/clients/{{ client.id }}/retry">
-      <button type="submit">Retry</button>
+      <button type="submit" data-i18n="retry">Retry</button>
     </form>
     {% endif %}
     {% if client.status not in ("pending_removal", "removing") %}
     <form method="post" action="/admin/clients/{{ client.id }}/delete"
-          onsubmit="return confirm('Remove {{ client.email }}? This revokes their access immediately.');">
-      <button type="submit" class="danger">Delete</button>
+          onsubmit="return confirm(t('confirm_delete').replace('{email}', '{{ client.email | e }}'));">
+      <button type="submit" class="danger" data-i18n="delete">Delete</button>
     </form>
     {% endif %}
   </td>

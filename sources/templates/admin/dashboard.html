@@ -99,6 +99,15 @@
     form.link-discord { display: flex; gap: 0.35rem; margin-top: 0.35rem; }
     form.link-discord input[type="text"] { width: 110px; }
     .header-actions { display: flex; align-items: center; gap: 0.75rem; }
+    .lang-selector select {
+      background: #1f2430; border: 1px solid var(--border); color: var(--text);
+      border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; font-family: inherit; cursor: pointer;
+    }
+    a.button-link {
+      background: #1f2430; border: 1px solid var(--border); color: var(--text);
+      border-radius: 6px; padding: 7px 14px; font-size: 0.85rem; text-decoration: none; display: inline-block;
+    }
+    a.button-link:hover { border-color: var(--accent); color: var(--text); }
     .user-menu {
       display: flex; align-items: center; gap: 0.5rem;
       background: var(--panel); border: 1px solid var(--border); border-radius: 999px;
@@ -120,21 +129,30 @@
 
   <div class="page-header">
     <div>
-      <a href="/">&larr; Back to generator</a>
-      <h1>VLESS clients</h1>
+      <a href="/">&larr; <span data-i18n="back_to_generator">Back to generator</span></a>
+      <h1 data-i18n="page_title">VLESS clients</h1>
     </div>
     <div class="header-actions">
+      <div class="lang-selector">
+        <select id="lang-select" onchange="setLang(this.value)" aria-label="Language">
+          <option value="en">🇬🇧 EN</option>
+          <option value="ua">🇺🇦 UA</option>
+          <option value="ru">🇷🇺 RU</option>
+        </select>
+      </div>
+      <a class="button-link" href="https://meow-elite.club/" data-i18n="portal_link">Portal</a>
       {% if avatar_url %}
       <div class="user-menu">
         <img src="{{ avatar_url }}" alt="">
         <form method="post" action="/logout">
-          <button type="submit">Log out (Discord)</button>
+          <button type="submit" data-i18n="logout_discord">Log out (Discord)</button>
         </form>
       </div>
-      {% endif %}
+      {% else %}
       <form method="post" action="/admin/logout">
-        <button type="submit">Log out</button>
+        <button type="submit" data-i18n="logout">Log out</button>
       </form>
+      {% endif %}
     </div>
   </div>
 
@@ -142,14 +160,23 @@
     <div class="table-scroll">
       <table>
         <thead>
-          <tr><th>Email</th><th>UUID</th><th>Flow</th><th>Status</th><th>Workflow run</th><th>Created</th><th>Discord ID</th><th></th></tr>
+          <tr>
+            <th data-i18n="th_email">Email</th>
+            <th data-i18n="th_uuid">UUID</th>
+            <th data-i18n="th_flow">Flow</th>
+            <th data-i18n="th_status">Status</th>
+            <th data-i18n="th_run">Workflow run</th>
+            <th data-i18n="th_created">Created</th>
+            <th data-i18n="th_discord_id">Discord ID</th>
+            <th></th>
+          </tr>
         </thead>
         <tbody>
           {% for client in clients %}
           {{ client_row(client, github_repo, discord_ids_by_email.get(client.email, [])) }}
           {% endfor %}
           {% if not clients %}
-          <tr><td colspan="8">No clients yet.</td></tr>
+          <tr><td colspan="8" data-i18n="no_clients">No clients yet.</td></tr>
           {% endif %}
         </tbody>
       </table>
@@ -157,21 +184,21 @@
   </div>
 
   <div class="card">
-    <h2>Add client</h2>
+    <h2 data-i18n="add_client">Add client</h2>
     <form class="add-client" method="post" action="/admin/clients">
       <input type="email" name="email" placeholder="new-client@example.com" required>
       <select name="flow">
         <option value="xtls-rprx-vision" selected>xtls-rprx-vision</option>
-        <option value="">empty (no flow)</option>
+        <option value="" data-i18n="flow_empty">empty (no flow)</option>
       </select>
-      <button type="submit" class="primary">Add client</button>
+      <button type="submit" class="primary" data-i18n="add_client">Add client</button>
     </form>
   </div>
 
   <div class="card">
-    <h2>How this works</h2>
+    <h2 data-i18n="how_it_works">How this works</h2>
     <ul class="help-list">
-      <li>
+      <li data-i18n-html="help_add">
         <strong>Add</strong> dispatches the <code>infra</code> repo's
         GitHub Actions workflow, which writes the new client's UUID to
         Infisical and redeploys xray. "dispatched" means the trigger call
@@ -179,34 +206,34 @@
         status/outcome, refreshed each time this page loads —
         "success" means xray actually restarted with the new client.
       </li>
-      <li>
+      <li data-i18n-html="help_delete">
         <strong>Delete</strong> dispatches the matching removal workflow
         and blocks the client's site login immediately
         ("pending_removal"/"removing"); the row itself disappears once a
         page load confirms the removal run succeeded.
       </li>
-      <li>
+      <li data-i18n-html="help_edit">
         <strong>Edit</strong> — email/flow are editable in place ("Save")
         except while an add/edit/remove is already in flight for that
         client. Editing dispatches the matching update workflow and never
         revokes site login, unlike deleting.
       </li>
-      <li>
+      <li data-i18n-html="help_flow">
         <strong>Flow</strong> is xray's per-client VLESS flow control —
         pick "empty" if this client's own sing-box config enables
         multiplexing, since Vision (xtls-rprx-vision) and mux can't be
         combined.
       </li>
-      <li>
+      <li data-i18n-html="help_refresh">
         Status/workflow-run columns <strong>refresh every 5s</strong> in
         place (no page reload) while any client has an add/remove/edit
         action in flight, so it never interrupts anything you're typing.
       </li>
-      <li>
+      <li data-i18n-html="help_save">
         <strong>Save</strong> stays disabled until you actually change
         that row's email or flow.
       </li>
-      <li>
+      <li data-i18n-html="help_discord_id">
         <strong>Discord ID</strong> lets a Discord-authenticated visitor
         skip the site's own email+UUID login on repeat visits. It links
         itself automatically the first time someone logs in normally
@@ -219,6 +246,124 @@
 
 </div>
 <script>
+  var i18n = {
+    en: {
+      back_to_generator: 'Back to generator',
+      page_title: 'VLESS clients',
+      portal_link: 'Portal',
+      logout_discord: 'Log out (Discord)',
+      logout: 'Log out',
+      th_email: 'Email', th_uuid: 'UUID', th_flow: 'Flow', th_status: 'Status',
+      th_run: 'Workflow run', th_created: 'Created', th_discord_id: 'Discord ID',
+      no_clients: 'No clients yet.',
+      add_client: 'Add client',
+      flow_empty: 'empty (no flow)',
+      how_it_works: 'How this works',
+      help_add: '<strong>Add</strong> dispatches the <code>infra</code> repo\'s GitHub Actions workflow, which writes the new client\'s UUID to Infisical and redeploys xray. "dispatched" means the trigger call succeeded; the "Workflow run" column reflects the actual run\'s status/outcome, refreshed each time this page loads — "success" means xray actually restarted with the new client.',
+      help_delete: '<strong>Delete</strong> dispatches the matching removal workflow and blocks the client\'s site login immediately ("pending_removal"/"removing"); the row itself disappears once a page load confirms the removal run succeeded.',
+      help_edit: '<strong>Edit</strong> — email/flow are editable in place ("Save") except while an add/edit/remove is already in flight for that client. Editing dispatches the matching update workflow and never revokes site login, unlike deleting.',
+      help_flow: '<strong>Flow</strong> is xray\'s per-client VLESS flow control — pick "empty" if this client\'s own sing-box config enables multiplexing, since Vision (xtls-rprx-vision) and mux can\'t be combined.',
+      help_refresh: 'Status/workflow-run columns <strong>refresh every 5s</strong> in place (no page reload) while any client has an add/remove/edit action in flight, so it never interrupts anything you\'re typing.',
+      help_save: '<strong>Save</strong> stays disabled until you actually change that row\'s email or flow.',
+      help_discord_id: '<strong>Discord ID</strong> lets a Discord-authenticated visitor skip the site\'s own email+UUID login on repeat visits. It links itself automatically the first time someone logs in normally while Discord-authenticated — enter it here only to link it yourself ahead of time, e.g. for a client you already know the Discord account for.',
+      save: 'Save', retry: 'Retry', delete: 'Delete', link_button: 'Link',
+      discord_id_placeholder: 'Discord user id', discord_id_title: 'Numeric Discord user id',
+      confirm_delete: 'Remove {email}? This revokes their access immediately.',
+    },
+    ua: {
+      back_to_generator: 'До генератора',
+      page_title: 'VLESS клієнти',
+      portal_link: 'Портал',
+      logout_discord: 'Вийти (Discord)',
+      logout: 'Вийти',
+      th_email: 'Email', th_uuid: 'UUID', th_flow: 'Flow', th_status: 'Статус',
+      th_run: 'Запуск workflow', th_created: 'Створено', th_discord_id: 'Discord ID',
+      no_clients: 'Клієнтів ще немає.',
+      add_client: 'Додати клієнта',
+      flow_empty: 'порожньо (без flow)',
+      how_it_works: 'Як це працює',
+      help_add: '<strong>Додавання</strong> запускає GitHub Actions workflow репозиторію <code>infra</code>, який записує UUID нового клієнта в Infisical і передеплоює xray. "dispatched" означає, що виклик тригера вдався; колонка "Запуск workflow" відображає фактичний статус/результат запуску, оновлюючись при кожному завантаженні сторінки — "success" означає, що xray дійсно перезапустився з новим клієнтом.',
+      help_delete: '<strong>Видалення</strong> запускає відповідний workflow видалення й одразу блокує вхід клієнта на сайт ("pending_removal"/"removing"); сам рядок зникає, щойно завантаження сторінки підтвердить, що запуск видалення завершився успішно.',
+      help_edit: '<strong>Редагування</strong> — email/flow редагуються прямо в рядку ("Зберегти"), окрім випадку, коли для цього клієнта вже виконується додавання/редагування/видалення. Редагування запускає відповідний workflow оновлення й ніколи не відкликає вхід на сайт, на відміну від видалення.',
+      help_flow: '<strong>Flow</strong> — це керування VLESS flow для клієнта на боці xray — обирайте "порожньо", якщо власний конфіг sing-box цього клієнта вмикає мультиплексування, оскільки Vision (xtls-rprx-vision) і mux не можна поєднувати.',
+      help_refresh: 'Колонки статусу/запуску workflow <strong>оновлюються кожні 5с</strong> на місці (без перезавантаження сторінки), поки хоч у одного клієнта виконується додавання/видалення/редагування — це ніколи не переб\'є те, що ви вводите.',
+      help_save: '<strong>Зберегти</strong> залишається неактивною, поки ви дійсно не зміните email або flow цього рядка.',
+      help_discord_id: '<strong>Discord ID</strong> дозволяє Discord-автентифікованому відвідувачу пропускати власний вхід сайту за email+UUID при повторних візитах. Він прив\'язується автоматично першого разу, коли хтось входить звичайним способом, будучи автентифікованим через Discord — вводьте його тут, лише щоб прив\'язати заздалегідь, наприклад, якщо ви вже знаєте Discord-акаунт для цього клієнта.',
+      save: 'Зберегти', retry: 'Повторити', delete: 'Видалити', link_button: 'Прив\'язати',
+      discord_id_placeholder: 'Discord user id', discord_id_title: 'Числовий Discord user id',
+      confirm_delete: 'Видалити {email}? Це негайно відкличе доступ.',
+    },
+    ru: {
+      back_to_generator: 'К генератору',
+      page_title: 'VLESS клиенты',
+      portal_link: 'Портал',
+      logout_discord: 'Выйти (Discord)',
+      logout: 'Выйти',
+      th_email: 'Email', th_uuid: 'UUID', th_flow: 'Flow', th_status: 'Статус',
+      th_run: 'Запуск workflow', th_created: 'Создано', th_discord_id: 'Discord ID',
+      no_clients: 'Клиентов пока нет.',
+      add_client: 'Добавить клиента',
+      flow_empty: 'пусто (без flow)',
+      how_it_works: 'Как это работает',
+      help_add: '<strong>Добавление</strong> запускает GitHub Actions workflow репозитория <code>infra</code>, который записывает UUID нового клиента в Infisical и передеплоивает xray. "dispatched" означает, что вызов триггера удался; колонка "Запуск workflow" отражает фактический статус/результат запуска, обновляясь при каждой загрузке страницы — "success" означает, что xray действительно перезапустился с новым клиентом.',
+      help_delete: '<strong>Удаление</strong> запускает соответствующий workflow удаления и сразу блокирует вход клиента на сайт ("pending_removal"/"removing"); сама строка исчезает, как только загрузка страницы подтвердит, что запуск удаления завершился успешно.',
+      help_edit: '<strong>Редактирование</strong> — email/flow редактируются прямо в строке ("Сохранить"), кроме случая, когда для этого клиента уже выполняется добавление/редактирование/удаление. Редактирование запускает соответствующий workflow обновления и никогда не отзывает вход на сайт, в отличие от удаления.',
+      help_flow: '<strong>Flow</strong> — это управление VLESS flow клиента на стороне xray — выбирайте "пусто", если собственный конфиг sing-box этого клиента включает мультиплексирование, так как Vision (xtls-rprx-vision) и mux нельзя сочетать.',
+      help_refresh: 'Колонки статуса/запуска workflow <strong>обновляются каждые 5с</strong> на месте (без перезагрузки страницы), пока хотя бы у одного клиента выполняется добавление/удаление/редактирование — это никогда не перебьёт то, что вы вводите.',
+      help_save: '<strong>Сохранить</strong> остаётся неактивной, пока вы действительно не измените email или flow этой строки.',
+      help_discord_id: '<strong>Discord ID</strong> позволяет Discord-аутентифицированному посетителю пропускать собственный вход сайта по email+UUID при повторных визитах. Он привязывается автоматически в первый раз, когда кто-то входит обычным способом, будучи аутентифицированным через Discord — вводите его здесь, только чтобы привязать заранее, например, если вы уже знаете Discord-аккаунт для этого клиента.',
+      save: 'Сохранить', retry: 'Повторить', delete: 'Удалить', link_button: 'Привязать',
+      discord_id_placeholder: 'Discord user id', discord_id_title: 'Числовой Discord user id',
+      confirm_delete: 'Удалить {email}? Это немедленно отзовёт доступ.',
+    },
+  };
+
+  var currentLang = 'en';
+
+  function t(key) {
+    return i18n[currentLang][key] ?? key;
+  }
+
+  function applyLang(lang) {
+    currentLang = lang;
+    var tr = i18n[lang];
+    document.documentElement.lang = lang;
+
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+      if (tr[el.dataset.i18n] !== undefined) el.textContent = tr[el.dataset.i18n];
+    });
+    document.querySelectorAll('[data-i18n-html]').forEach(function (el) {
+      if (tr[el.dataset.i18nHtml] !== undefined) el.innerHTML = tr[el.dataset.i18nHtml];
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) {
+      if (tr[el.dataset.i18nPlaceholder] !== undefined) el.placeholder = tr[el.dataset.i18nPlaceholder];
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(function (el) {
+      if (tr[el.dataset.i18nTitle] !== undefined) el.title = tr[el.dataset.i18nTitle];
+    });
+
+    var sel = document.getElementById('lang-select');
+    if (sel) sel.value = lang;
+  }
+
+  function setLang(lang) {
+    localStorage.setItem('lang', lang);
+    applyLang(lang);
+  }
+
+  function detectLang() {
+    var supported = ['en', 'ua', 'ru'];
+    var langs = navigator.languages || [navigator.language];
+    for (var i = 0; i < langs.length; i++) {
+      var tag = langs[i].split('-')[0].toLowerCase();
+      if (tag === 'uk') tag = 'ua';
+      if (supported.indexOf(tag) !== -1) return tag;
+    }
+    return 'en';
+  }
+
+  applyLang(localStorage.getItem('lang') || detectLang());
+
   (function () {
     function fieldsForForm(formId) {
       return Array.from(document.querySelectorAll('[form="' + formId + '"]'))
@@ -273,6 +418,7 @@
           if (newRow) {
             row.replaceWith(newRow)
             updateSaveState('edit-' + client.id)
+            applyLang(currentLang)
           }
           return
         }

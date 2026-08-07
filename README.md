@@ -39,7 +39,14 @@ below.
   revocation. The dashboard auto-refreshes every 5s while an
   add/edit/remove is in flight. Gated by its own login (`/admin/login`),
   independent of the site login below — a bug in one can't lock you out of
-  the other
+  the other. Has its own EN/UA/RU switcher (separate from the generator
+  SPA's — this page is server-rendered Jinja2, not React), reapplied after
+  every 5s status poll refreshes a row so newly-injected server HTML lands
+  translated too; the "Log out" button is either the Discord-session one
+  or `/admin/login`'s own, never both — which one shows depends on which
+  auth path got you into `/admin/` (see below), never both at once. Both
+  the SPA and this page also link back to the Discord portal
+  (`https://meow-elite.club/`) next to their language switcher
 - **Site login via client credentials** — optional: log in at `/login` with
   an existing client's email + VLESS UUID to get a signed session cookie
   (`/logout` to end it), which auto-fills your own credentials into the

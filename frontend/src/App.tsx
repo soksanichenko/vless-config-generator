@@ -172,6 +172,9 @@ export function App() {
         </div>
         <div className="header-actions">
           <LanguageSwitcher value={lang} onChange={setLang} />
+          <a className="button" href="https://meow-elite.club/">
+            {t('header.portal')}
+          </a>
           <UserMenu />
         </div>
       </div>
