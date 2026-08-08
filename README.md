@@ -131,8 +131,11 @@ below.
   single-step rules (`rule_set`/`ip_cidr` matched directly against the query
   response), which work on any current sing-box release. `Alpha` uses
   two-step `evaluate`/`match_response` rules, which need sing-box 1.14.0 —
-  not released as stable yet, only as alpha builds. Has no effect for the
-  Default region
+  not released as stable yet, only as alpha builds. `Alpha` also switches
+  how the region's rule sets get downloaded: `route.http_clients` +
+  `default_http_client` (sing-box 1.14.0+) instead of the deprecated
+  per-rule-set `download_detour` (removed in 1.16.0), which `Stable` keeps
+  using. Has no effect for the Default region
 - **Syntax-highlighted JSON** — both the base-config editor and the output
   panel highlight JSON tokens as you type/view
 - **Output** — copy to clipboard or download the resulting `config.json`; a

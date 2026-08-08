@@ -23,6 +23,26 @@ export interface RegionConfigResult {
  * redundantly alongside A/AAAA, adding latency for no benefit in this setup. */
 const BLOCK_HTTPS_SVCB_RULE = { query_type: [32, 33], action: 'predefined', rcode: 'NOERROR' }
 
+/** Tags for the `route.http_clients` entries buildConfig.ts adds under the `alpha`
+ * target — kept here so the rule_set entries below and that array stay in sync. */
+export const HTTP_CLIENT_DIRECT_TAG = 'http-direct'
+export const HTTP_CLIENT_PROXY_TAG = 'http-proxy'
+
+/** `download_detour` is deprecated since sing-box 1.14.0 (removed in 1.16.0) in favor
+ * of `http_client`, which `alpha`-target configs already require for evaluate/
+ * match_response DNS rules — so switch rule_set downloads over on the same flag. */
+function ruleSetDownloadFields(
+  via: 'direct' | 'proxy',
+  directTag: string,
+  proxyTag: string,
+  singboxTarget: SingboxTarget,
+): Record<string, unknown> {
+  if (singboxTarget === 'alpha') {
+    return { http_client: via === 'direct' ? HTTP_CLIENT_DIRECT_TAG : HTTP_CLIENT_PROXY_TAG }
+  }
+  return { download_detour: via === 'direct' ? directTag : proxyTag }
+}
+
 export function buildRegionConfig(
   region: Region,
   directTag: string,
@@ -57,7 +77,7 @@ export function buildRegionConfig(
     return {
       dns: {
         servers: [
-          { type: 'local', tag: 'dns-local' },
+          { type: 'local', tag: 'dns-local', strategy: 'prefer_ipv4' },
           {
             type: 'https',
             tag: 'dns-remote',
@@ -83,14 +103,14 @@ export function buildRegionConfig(
           tag: 'geoip-ua',
           format: 'binary',
           url: 'https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-ua.srs',
-          download_detour: directTag,
+          ...ruleSetDownloadFields('direct', directTag, proxyTag, singboxTarget),
         },
         {
           type: 'remote',
           tag: 'geoip-ru',
           format: 'binary',
           url: 'https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-ru.srs',
-          download_detour: proxyTag,
+          ...ruleSetDownloadFields('proxy', directTag, proxyTag, singboxTarget),
         },
         // CDN edge ranges — final is "proxy" for this region, so without these, CDN
         // traffic (unblocked, not needing the tunnel) would take an unnecessary detour
@@ -107,7 +127,7 @@ export function buildRegionConfig(
           tag,
           format: 'binary',
           url: `https://raw.githubusercontent.com/Loyalsoldier/geoip/release/srs/${name}.srs`,
-          download_detour: directTag,
+          ...ruleSetDownloadFields('direct', directTag, proxyTag, singboxTarget),
         })),
       ],
       // geoip-ru must be checked before the CDN rule_set: some resources reachable only
@@ -153,7 +173,7 @@ export function buildRegionConfig(
     return {
       dns: {
         servers: [
-          { type: 'local', tag: 'dns-local' },
+          { type: 'local', tag: 'dns-local', strategy: 'prefer_ipv4' },
           {
             type: 'https',
             tag: 'dns-remote',
@@ -172,14 +192,14 @@ export function buildRegionConfig(
           tag: 'geosite-ru-blocked',
           format: 'binary',
           url: 'https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-ru-blocked.srs',
-          download_detour: proxyTag,
+          ...ruleSetDownloadFields('proxy', directTag, proxyTag, singboxTarget),
         },
         {
           type: 'remote',
           tag: 'geoip-ru-blocked',
           format: 'binary',
           url: 'https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geoip/geoip-ru-blocked.srs',
-          download_detour: proxyTag,
+          ...ruleSetDownloadFields('proxy', directTag, proxyTag, singboxTarget),
         },
       ],
       // No CDN rule_set here: final for this region is already "direct", so unblocked
