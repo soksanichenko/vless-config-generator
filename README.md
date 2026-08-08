@@ -57,23 +57,26 @@ below.
 - **Self-service credentials** (`POST /api/self-service/generate`) — a
   Discord-authenticated user with access but no VLESS credentials of
   their own yet can generate one, without an operator touching
-  `/admin/`. Opt-in per service: only reachable when meow-elite-club-portal's
-  `/admin/services` has the self-service toggle on for this service (see
-  that repo's README), forwarded here as
+  `/admin/`. Opt-in per grant: only reachable when meow-elite-club-portal's
+  `/admin/services` has the self-service checkbox on for this Discord
+  user/guild specifically (see that repo's README), forwarded here as
   `X-Service-Self-Service-Enabled` by nginx's own `auth_request`.
   Creates the client through the exact same path as the admin panel's own
   "Add client" (`client_create` + the infra add-client GitHub Actions
   workflow), immediately links it to the caller's Discord identity (same
   `DiscordLink` implicit-linking used elsewhere), and signs the browser
   into a site session on the same response — no separate visit to
-  `/login` needed. `email` is a synthetic label
-  (`discord-<id>@self-service.local`), not a real address — see
-  `models_db.Client`'s own docstring on why that's fine. A Discord
-  identity can only ever hold one self-service-generated credential
-  (`409` on a repeat attempt) — matches "generate my own, once" rather
-  than the admin panel's unlimited add. The new client starts "pending"
-  like any admin-added one, so the SPA polls `/api/clients` every 5s
-  (same cadence as the admin dashboard's own status poll) until the
+  `/login` needed. `email` prefers the Discord account's own verified
+  email (`X-Discord-Email`, present only if that OAuth scope was
+  granted), falling back to a synthetic label
+  (`discord-<id>@self-service.local`) otherwise — see `models_db.Client`'s
+  own docstring on why a non-real address there is fine either way. A
+  Discord identity can only ever hold one self-service-generated
+  credential (`409` on a repeat attempt) — matches "generate my own,
+  once" rather than the admin panel's unlimited add. The new client
+  starts "pending" like any admin-added one, so the SPA polls
+  `/api/clients` every 5s (same cadence as the admin dashboard's own
+  status poll) until the
   GitHub Actions run confirms and it becomes usable
 - **Routing rule builder** — drag-reorderable rule list (first match wins),
   each rule combining any of: domain (exact/suffix/keyword/regex), rule sets

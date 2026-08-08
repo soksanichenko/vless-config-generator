@@ -79,17 +79,21 @@ location = /api/whoami {
 
 # Same gate as /api/whoami above (Discord, not the site's own
 # auth_request) — self-service credential creation only needs to know
-# who the Discord caller is and whether the portal's per-service toggle
-# is on, both of which /internal/zw-auth already provides; app.py enforces
-# the toggle and the "no existing link" check itself.
+# who the Discord caller is, their verified email (if any — used as the
+# new client's label instead of a synthetic one), and whether the
+# portal's per-grant toggle is on, all of which /internal/zw-auth already
+# provides; app.py enforces the toggle and the "no existing link" check
+# itself.
 location = /api/self-service/generate {
     auth_request /internal/zw-auth;
     auth_request_set $discord_user_id $upstream_http_x_discord_user_id;
+    auth_request_set $discord_email $upstream_http_x_discord_email;
     auth_request_set $self_service_enabled $upstream_http_x_service_self_service_enabled;
     error_page 401 = @zw_login;
     proxy_pass http://{{ vless_config_generator_api_upstream_name }}/api/self-service/generate;
     proxy_set_header Host $host;
     proxy_set_header X-Discord-User-Id $discord_user_id;
+    proxy_set_header X-Discord-Email $discord_email;
     proxy_set_header X-Service-Self-Service-Enabled $self_service_enabled;
 }
 

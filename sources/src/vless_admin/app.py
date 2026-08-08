@@ -418,22 +418,25 @@ async def api_self_service_generate(request: Request) -> Response:
     """Self-service credential creation: same client_create + infra
     add-client GitHub Actions workflow the admin panel's "Add client" uses
     (see `_dispatch_add_and_mark`), triggered by the Discord user
-    themselves instead of an operator. Only reachable when the portal's
-    per-service self-service toggle is on for this service (see
+    themselves instead of an operator. Only reachable when the portal has
+    a `can_self_service` grant for this caller on this service (see
     `/admin/services` in meow-elite-club-portal) — that's what
     `X-Service-Self-Service-Enabled` reflects, forwarded on this same
     request by nginx's own `auth_request` (see this role's
     `location.conf.j2`), same gate `/api/whoami` already sits behind.
 
-    The new client's `email` is a synthetic label
-    (`discord-<id>@self-service.local`) rather than the account's actual
-    Discord email — matches models_db.Client's own docstring (`email`
-    identifies the *account*, not necessarily a real address) and avoids
-    depending on the optional `email` OAuth scope. Immediately linked to
-    the caller (so `login_form`'s silent auto-login recognizes it on
-    future visits) and immediately signed into a site session on this
-    same response, so the SPA can use it right away without a second
-    round trip through `/login`.
+    The new client's `email` prefers the Discord account's own verified
+    email (`X-Discord-Email`, present only if the `email` OAuth scope was
+    granted — see meow-elite-club-portal's discord_oauth.py) so the
+    generator's "Logged in as" line shows something recognizable instead
+    of an opaque id. Falls back to a synthetic label
+    (`discord-<id>@self-service.local`) when there isn't one — matches
+    models_db.Client's own docstring (`email` identifies the *account*,
+    not necessarily a real address), so this never blocks on the scope
+    being optional. Immediately linked to the caller (so `login_form`'s
+    silent auto-login recognizes it on future visits) and immediately
+    signed into a site session on this same response, so the SPA can use
+    it right away without a second round trip through `/login`.
     """
     if request.headers.get("X-Service-Self-Service-Enabled") != "true":
         return JSONResponse({"error": "self-service disabled"}, status_code=403)
@@ -443,7 +446,10 @@ async def api_self_service_generate(request: Request) -> Response:
     if await discord_link_get_email(discord_user_id) is not None:
         return JSONResponse({"error": "already have credentials"}, status_code=409)
 
-    email = f"discord-{discord_user_id}@self-service.local"
+    email = (
+        request.headers.get("X-Discord-Email")
+        or f"discord-{discord_user_id}@self-service.local"
+    )
     client = await client_create(email, "xtls-rprx-vision")
     await discord_link_upsert(discord_user_id, email)
     await _dispatch_add_and_mark(client)
