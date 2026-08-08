@@ -9,7 +9,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy_utils import create_database, database_exists
 
-from .models_db import Client, DiscordLink, Session
+from .models_db import Client, DiscordLink, SavedConfig, Session
 
 logger = logging.getLogger(__name__)
 
@@ -267,6 +267,45 @@ async def discord_link_upsert(discord_user_id: str, email: str) -> None:
                 index_elements=["discord_user_id"], set_={"email": email}
             )
         )
+        await session.commit()
+
+
+async def saved_config_create(email: str, config_text: str) -> SavedConfig:
+    """Insert a new saved config for an account."""
+    async with get_session() as session:
+        result = await session.execute(
+            insert(SavedConfig)
+            .values(email=email, config_text=config_text)
+            .returning(SavedConfig)
+        )
+        await session.commit()
+        return result.scalar_one()
+
+
+async def saved_config_list_by_email(email: str) -> list[SavedConfig]:
+    """Return every saved config for an account, oldest first."""
+    async with get_session() as session:
+        result = await session.execute(
+            select(SavedConfig)
+            .where(SavedConfig.email == email)
+            .order_by(SavedConfig.created_at.asc())
+        )
+        return list(result.scalars())
+
+
+async def saved_config_get(config_id: UUID) -> SavedConfig | None:
+    """Return a saved config row for an id, or None."""
+    async with get_session() as session:
+        result = await session.execute(
+            select(SavedConfig).where(SavedConfig.id == config_id)
+        )
+        return result.scalar_one_or_none()
+
+
+async def saved_config_delete(config_id: UUID) -> None:
+    """Delete a saved config row."""
+    async with get_session() as session:
+        await session.execute(delete(SavedConfig).where(SavedConfig.id == config_id))
         await session.commit()
 
 

@@ -594,6 +594,45 @@ implemented from for the full ground-truth investigation):
   keeps working for rows the poller swaps in via fresh `row_html` without
   needing to re-attach anything.
 
+## Saved configs
+
+A logged-in account (see "Client credentials" above — same `email`-keyed
+notion of account as everything else here) can save the currently generated
+output to Postgres and come back for it later, instead of only ever having
+the one-shot Copy/Download from the Output panel.
+
+- New `SavedConfig` table (`models_db.py`; migration
+  `df432a40a850_create_saved_configs_table`): `id` (UUID PK), `email`
+  (account key, same non-unique convention as `Client.email`), `config_text`
+  (the final `config.json` text — not the rule-builder state that produced
+  it, so there's nothing to resume-edit, only to download again), `created_at`.
+- Capped at `MAX_SAVED_CONFIGS_PER_ACCOUNT = 5` (`app.py`) — saving past the
+  cap evicts the oldest row for that account rather than rejecting the save
+  or growing unbounded. No per-config name: the UI lists entries by
+  `created_at` only, kept deliberately simple since "download it again
+  later" doesn't need a naming scheme.
+- Four routes, all gated the same way `/api/clients` already is (the
+  session cookie resolves to *an* account email via
+  `get_clients_from_session`, factored out here as
+  `_account_email_from_site_session` since these routes don't otherwise
+  need the client rows themselves): `GET /api/saved-configs` (list, id +
+  `createdAt` only), `POST /api/saved-configs` (body `{"config": "<json
+  text>"}`, 400 if not valid JSON), `GET /api/saved-configs/{id}` (returns
+  the stored text for the frontend to blob-download, 404 if the id doesn't
+  belong to the caller's account), `DELETE /api/saved-configs/{id}` (same
+  ownership check).
+- Frontend: `SavedConfigs.tsx`, a standalone card below the Output panel
+  (`frontend/src/lib/savedConfigs.ts` for the fetch calls,
+  `frontend/src/types/savedConfig.ts` for the response shapes) — takes the
+  same `SingBoxConfig | null` the Output panel renders and a `loggedIn`
+  flag (`clients.length > 0` in `App.tsx`, the same signal `/api/clients`
+  already gives), so it doesn't need its own separate auth check to decide
+  what to show. Download re-fetches the full text on click (the list
+  response deliberately omits it, to keep that call cheap) and triggers a
+  client-side blob download exactly like the Output panel's own Download
+  button, filename stamped from `createdAt` since there's no per-config
+  name to use instead.
+
 ## Access control
 
 Client credentials (UUID, public key, short ID) are sensitive, but the
@@ -688,7 +727,8 @@ together — both cookie-session based, both enforced via nginx
    sing-box version target), and optionally enable multiplexing (mux) if
    your ISP caps concurrent TLS connections to one host.
 5. Get back the same config with `route` and `dns` replaced — download or
-   copy.
+   copy. If logged in, optionally save it to your account too, to download
+   again later without redoing the steps above (see "Saved configs").
 6. Everything from step 2 onward runs entirely in the browser; the client
    data (step 1) and rule-set category autocomplete now depend on this
    repo's own backend rather than a deploy-time static file (see "Admin
@@ -845,3 +885,10 @@ together — both cookie-session based, both enforced via nginx
   sing-box 1.14.0 — between `download_detour` and `http_client` for
   rule_set downloads — see "Sing-box version target (Stable / Alpha)"
   above for the full rationale.
+- The Output panel links to
+  [sing-box-tray-runner](https://github.com/soksanichenko/sing-box-tray-runner)
+  as the recommended way to actually run the generated config
+  (`frontend/src/components/OutputPanel.tsx`).
+- Saved configs (`models_db.SavedConfig`, `app.py`'s
+  `/api/saved-configs*` routes, `frontend/src/components/SavedConfigs.tsx`)
+  — see "Saved configs" above for the full rationale.

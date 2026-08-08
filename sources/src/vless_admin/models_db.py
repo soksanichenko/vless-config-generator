@@ -1,6 +1,6 @@
 """SQLAlchemy ORM models (used by Alembic for autogenerate)."""
 
-from sqlalchemy import BigInteger, DateTime, String, func, text
+from sqlalchemy import BigInteger, DateTime, String, Text, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, MappedColumn, mapped_column
 
@@ -93,6 +93,35 @@ class DiscordLink(Base):
     email: MappedColumn[str] = mapped_column(String, nullable=False)
     linked_at: MappedColumn[DateTime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class SavedConfig(Base):
+    """A generated sing-box config a site-logged-in account saved for later download.
+
+    Keyed by `email` (the account), same as `Client` — any credential under
+    that email can see/download/delete every config saved by any of them,
+    matching how `/api/clients` already scopes by account rather than by
+    the specific credential used to log in. Only the final generated
+    `config.json` text is kept, not the rule-builder state that produced
+    it. Capped at a small number of slots per account (see `app.py`'s
+    `MAX_SAVED_CONFIGS_PER_ACCOUNT`); saving past the cap evicts the oldest
+    row for that email.
+    """
+
+    __tablename__ = "saved_configs"
+
+    id: MappedColumn[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    email: MappedColumn[str] = mapped_column(String, nullable=False)
+    config_text: MappedColumn[str] = mapped_column(Text, nullable=False)
+    created_at: MappedColumn[DateTime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
     )
 
 

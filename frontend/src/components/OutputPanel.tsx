@@ -64,6 +64,16 @@ export function OutputPanel({ config, warnings }: Props) {
               </label>
             </div>
           </div>
+          <p className="help-text">
+            {t('output.trayRunnerHint')}{' '}
+            <a
+              href="https://github.com/soksanichenko/sing-box-tray-runner"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              sing-box-tray-runner
+            </a>
+          </p>
           <pre className="json-output">
             <code dangerouslySetInnerHTML={{ __html: highlighted }} />
           </pre>

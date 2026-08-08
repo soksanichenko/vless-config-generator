@@ -146,7 +146,16 @@ below.
   destination resolved first. A "Show comments" toggle switches the display
   to an annotated, explanatory version of the same JSON (localized) — Copy
   and Download always stay on the plain, comment-free version, since
-  comments aren't valid JSON and some sing-box clients won't parse them
+  comments aren't valid JSON and some sing-box clients won't parse them. A
+  note above the output links to
+  [sing-box-tray-runner](https://github.com/soksanichenko/sing-box-tray-runner),
+  the recommended way to actually run the generated config
+- **Saved configs** — a logged-in account (see "Client credentials" above)
+  can save the current output (`POST /api/saved-configs`) to download again
+  later, up to 5 slots; saving past the limit evicts the oldest one for that
+  account. Only the final `config.json` text is kept, not the rule-builder
+  state that produced it. Visitors who aren't logged in see a "Log in to
+  save" hint instead
 - **Localization** — EN/UA/RU switcher (top-right, persisted in
   `localStorage`); every heading, help text, label, button, and warning is
   translated. Unlike zelgray.work's static error pages (`infra`'s

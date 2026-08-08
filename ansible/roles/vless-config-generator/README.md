@@ -15,7 +15,9 @@ Browser-based sing-box routing-rule editor for VLESS clients on zelgray.work
    - serves `/api/clients` (every credential belonging to the logged-in
      account — one email can hold several, never another account's data)
      and `/api/ruleset-categories` (geosite/geoip category autocomplete,
-     Redis-cached) to the frontend
+     Redis-cached) to the frontend, plus `/api/saved-configs` (list/save/
+     download/delete, capped at 5 per account, also scoped to the
+     logged-in account) for the "Saved configs" card
    - serves `/login` + `/logout` (site login form, email + VLESS UUID) and
      `/auth`, the nginx `auth_request` target that gates `/api/` (client
      autofill, live rule-set category list) against the resulting session

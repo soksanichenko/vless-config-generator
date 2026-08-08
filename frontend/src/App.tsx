@@ -9,6 +9,7 @@ import { RegionSelector } from './components/RegionSelector'
 import { MultiplexSettings } from './components/MultiplexSettings'
 import { SingboxTargetSelector } from './components/SingboxTargetSelector'
 import { OutputPanel } from './components/OutputPanel'
+import { SavedConfigs } from './components/SavedConfigs'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
 import { UserMenu } from './components/UserMenu'
 import { buildOutputConfig } from './lib/buildConfig'
@@ -256,6 +257,8 @@ export function App() {
       <DefaultOutboundToggle value={defaultAction} onChange={setDefaultAction} />
 
       <OutputPanel config={outputConfig} warnings={warnings} />
+
+      <SavedConfigs config={outputConfig} loggedIn={clients.length > 0} />
     </div>
   )
 }

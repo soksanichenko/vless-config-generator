@@ -1,5 +1,6 @@
 """FastAPI application: VLESS client admin + config-generator API."""
 
+import json
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -40,6 +41,10 @@ from .db import (
     discord_link_list,
     discord_link_upsert,
     init_db,
+    saved_config_create,
+    saved_config_delete,
+    saved_config_get,
+    saved_config_list_by_email,
 )
 from .github_categories import get_ruleset_categories
 from .github_dispatch import (
@@ -65,6 +70,10 @@ config = AppConfig.from_yaml(Path(os.getenv("CONFIG_PATH", "config.yaml")))
 templates = Jinja2Templates(directory=_ROOT / "templates")
 _cache: Cache | None = None
 _http: httpx.AsyncClient | None = None
+
+# Per-account cap on saved configs (see SavedConfig.__doc__) — saving past this
+# evicts the oldest row for that email rather than rejecting the save.
+MAX_SAVED_CONFIGS_PER_ACCOUNT = 5
 
 _IN_FLIGHT_STATUSES = {
     "pending",
@@ -461,6 +470,89 @@ async def api_self_service_generate(request: Request) -> Response:
         response, kind="site", subject=client.email, cookie_secure=config.cookie_secure
     )
     return response
+
+
+async def _account_email_from_site_session(request: Request) -> str:
+    """Return the logged-in account's email, or raise 401.
+
+    Same primitive `/api/clients` already uses (`get_clients_from_session`) —
+    any of an account's credentials being login-allowed is enough; which one
+    was actually used to log in doesn't matter for saved-config ownership.
+    """
+    clients = await get_clients_from_session(request.cookies.get(SITE_COOKIE_NAME))
+    if not clients:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return clients[0].email
+
+
+@app.get("/api/saved-configs")
+async def api_saved_configs_list(request: Request) -> JSONResponse:
+    """Every config saved by the logged-in account, most recent first."""
+    email = await _account_email_from_site_session(request)
+    configs = await saved_config_list_by_email(email)
+    return JSONResponse(
+        {
+            "configs": [
+                {"id": str(saved.id), "createdAt": saved.created_at.isoformat()}
+                for saved in reversed(configs)
+            ]
+        }
+    )
+
+
+@app.post("/api/saved-configs")
+async def api_saved_configs_create(request: Request) -> JSONResponse:
+    """Save a generated config for the logged-in account.
+
+    Only the final `config.json` text is kept, not the rule-builder state
+    that produced it. Past `MAX_SAVED_CONFIGS_PER_ACCOUNT` slots, the
+    oldest saved config for this account is evicted to make room.
+    """
+    email = await _account_email_from_site_session(request)
+    body = await request.json()
+    config_text = body.get("config")
+    if not isinstance(config_text, str) or not config_text.strip():
+        raise HTTPException(status_code=400, detail="config must be a non-empty string")
+    try:
+        json.loads(config_text)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="config must be valid JSON")
+
+    existing = await saved_config_list_by_email(email)
+    if len(existing) >= MAX_SAVED_CONFIGS_PER_ACCOUNT:
+        await saved_config_delete(existing[0].id)
+
+    saved = await saved_config_create(email, config_text)
+    return JSONResponse(
+        {"id": str(saved.id), "createdAt": saved.created_at.isoformat()}
+    )
+
+
+@app.get("/api/saved-configs/{config_id}")
+async def api_saved_configs_get(config_id: UUID, request: Request) -> JSONResponse:
+    """Download one of the logged-in account's saved configs."""
+    email = await _account_email_from_site_session(request)
+    saved = await saved_config_get(config_id)
+    if saved is None or saved.email != email:
+        raise HTTPException(status_code=404, detail="Saved config not found")
+    return JSONResponse(
+        {
+            "id": str(saved.id),
+            "createdAt": saved.created_at.isoformat(),
+            "config": saved.config_text,
+        }
+    )
+
+
+@app.delete("/api/saved-configs/{config_id}")
+async def api_saved_configs_delete(config_id: UUID, request: Request) -> Response:
+    """Delete one of the logged-in account's saved configs."""
+    email = await _account_email_from_site_session(request)
+    saved = await saved_config_get(config_id)
+    if saved is None or saved.email != email:
+        raise HTTPException(status_code=404, detail="Saved config not found")
+    await saved_config_delete(config_id)
+    return Response(status_code=204)
 
 
 @app.get("/api/ruleset-categories")

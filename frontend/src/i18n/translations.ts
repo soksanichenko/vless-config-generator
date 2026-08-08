@@ -242,6 +242,32 @@ const DICT = {
     ua: 'Показати коментарі (лише для перегляду — Копіювання/Завантаження без коментарів)',
     ru: 'Показать комментарии (только для просмотра — Копирование/Скачивание без комментариев)',
   },
+  'output.trayRunnerHint': {
+    en: 'Recommended way to run this config:',
+    ua: 'Рекомендований спосіб запустити цей конфіг:',
+    ru: 'Рекомендуемый способ запустить этот конфиг:',
+  },
+
+  'savedConfigs.heading': { en: '9. Saved configs', ua: '9. Збережені конфіги', ru: '9. Сохранённые конфиги' },
+  'savedConfigs.help': {
+    en: 'Save the current output to your account (up to {max} — saving past the limit removes the oldest one).',
+    ua: 'Збережіть поточний результат у свій акаунт (до {max} — після ліміту найстаріший видаляється).',
+    ru: 'Сохраните текущий результат в свой аккаунт (до {max} — после лимита старейший удаляется).',
+  },
+  'savedConfigs.loginHint': {
+    en: 'Log in to save generated configs to your account and download them later.',
+    ua: 'Увійдіть, щоб зберігати згенеровані конфіги у свій акаунт і завантажувати їх пізніше.',
+    ru: 'Войдите, чтобы сохранять сгенерированные конфиги в свой аккаунт и скачивать их позже.',
+  },
+  'savedConfigs.saveButton': { en: 'Save current config', ua: 'Зберегти поточний конфіг', ru: 'Сохранить текущий конфиг' },
+  'savedConfigs.saving': { en: 'Saving…', ua: 'Зберігаємо…', ru: 'Сохраняем…' },
+  'savedConfigs.empty': {
+    en: 'No saved configs yet.',
+    ua: 'Ще немає збережених конфігів.',
+    ru: 'Пока нет сохранённых конфигов.',
+  },
+  'savedConfigs.download': { en: 'Download', ua: 'Завантажити', ru: 'Скачать' },
+  'savedConfigs.delete': { en: 'Delete', ua: 'Видалити', ru: 'Удалить' },
 
   'warnings.noDirect': {
     en: 'No direct outbound selected — rules using "Direct" will reference an empty tag.',
