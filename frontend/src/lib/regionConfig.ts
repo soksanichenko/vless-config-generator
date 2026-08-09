@@ -76,8 +76,9 @@ export function buildRegionConfig(
           ]
     return {
       dns: {
+        strategy: 'prefer_ipv4',
         servers: [
-          { type: 'local', tag: 'dns-local', strategy: 'prefer_ipv4' },
+          { type: 'local', tag: 'dns-local' },
           {
             type: 'https',
             tag: 'dns-remote',
@@ -172,8 +173,9 @@ export function buildRegionConfig(
           ]
     return {
       dns: {
+        strategy: 'prefer_ipv4',
         servers: [
-          { type: 'local', tag: 'dns-local', strategy: 'prefer_ipv4' },
+          { type: 'local', tag: 'dns-local' },
           {
             type: 'https',
             tag: 'dns-remote',

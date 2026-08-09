@@ -257,8 +257,9 @@ export function buildOutputConfig(input: BuildConfigInput): SingBoxConfig {
 
   config.route = route
 
-  // Preserve any other dns-level settings the pasted config already had —
-  // only servers, rules, and final are fully replaced based on the selected region.
+  // Preserve any other dns-level settings the pasted config already had — only
+  // servers, rules, final, and (for regions that set one) strategy are fully
+  // replaced based on the selected region.
   const existingDns = (
     config.dns && typeof config.dns === 'object' ? config.dns : {}
   ) as Record<string, unknown>

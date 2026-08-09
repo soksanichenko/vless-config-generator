@@ -170,17 +170,33 @@ pre-existing `dns`-level keys in the pasted config pass through untouched.
   region produced — an earlier version left it as `"local"` from the
   placeholder config, which stopped matching once the DNS servers were
   retagged `dns-local`/`dns-remote`/`dns-direct`.
-- **`dns-local` carries its own `strategy: prefer_ipv4`** (Ukraine and
-  Russia both) — distinct from the `domain_resolver.strategy` already set
-  on `dns-remote`/`dns-direct`, which only matters when a DoH server's own
-  `server` field is a domain name rather than a literal IP (never the case
-  here: `1.1.1.1`/`9.9.9.9`). Without it on `dns-local` itself — which is
-  `default_domain_resolver` for both regions, and therefore also resolves
-  the rule_set download host — sing-box could hand back an AAAA answer for
-  a domain resolved through it, and the download attempt then dials that
-  IPv6 address directly; on a host with no working IPv6 uplink this fails
-  outright (`connectex: The requested address is not valid in its
-  context` on Windows) rather than falling back to the working A record.
+- **`dns.strategy: "prefer_ipv4"` at the top of the `dns` block** (Ukraine
+  and Russia both) — global default resolution strategy for every server
+  in that `dns` block, distinct from the `domain_resolver.strategy`
+  already set on `dns-remote`/`dns-direct` (which only matters when a DoH
+  server's own `server` field is a domain name rather than a literal IP,
+  never the case here: `1.1.1.1`/`9.9.9.9`). Without a `prefer_ipv4`
+  default somewhere, `dns-local` (which is `default_domain_resolver` for
+  both regions, and therefore also resolves the rule_set download host)
+  could hand back an AAAA answer for a domain resolved through it, and the
+  download attempt then dials that IPv6 address directly; on a host with
+  no working IPv6 uplink this fails outright (`connectex: The requested
+  address is not valid in its context` on Windows) rather than falling
+  back to the working A record.
+  **Bug fixed:** the first attempt at this put `strategy: "prefer_ipv4"`
+  directly on the `dns-local` server object itself
+  (`{ type: "local", tag: "dns-local", strategy: "prefer_ipv4" }`) — that
+  field doesn't exist on any DNS server type in sing-box's current schema
+  (confirmed via the official docs: `local` only accepts `type`/`tag`/
+  `prefer_go`/`neighbor_domain` plus the shared dial fields), so alpha
+  builds that actually validate against it hard-fail at startup
+  (`FATAL ... dns.servers[0].strategy: json: unknown field "strategy"`).
+  The only valid places for a resolution-strategy default are the
+  top-level `dns.strategy` (applies to the whole `dns` block, used here)
+  or a `strategy` field inside a `domain_resolver`/route-DNS-`route`-action
+  object (already in use for `dns-remote`/`dns-direct`, but moot for them
+  since their `server` is a literal IP) — never directly on a server
+  entry.
 - **Ukraine — CDN direct-routing.** Ukraine's `final` is `proxy` (see below),
   so without an explicit carve-out, well-known CDN edge ranges (Cloudflare,
   Google, Fastly, AWS CloudFront) would take an unnecessary detour through
