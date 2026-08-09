@@ -170,28 +170,48 @@ pre-existing `dns`-level keys in the pasted config pass through untouched.
   region produced — an earlier version left it as `"local"` from the
   placeholder config, which stopped matching once the DNS servers were
   retagged `dns-local`/`dns-remote`/`dns-direct`.
-- **`dns.strategy: "prefer_ipv4"` at the top of the `dns` block** (Ukraine
-  and Russia both) — global default resolution strategy for every server
-  in that `dns` block. Without a `prefer_ipv4` default somewhere,
-  `dns-local` (which is `default_domain_resolver` for both regions, and
-  therefore also resolves the rule_set download host) could hand back an
-  AAAA answer for a domain resolved through it, and the download attempt
-  then dials that IPv6 address directly; on a host with no working IPv6
-  uplink this fails outright (`connectex: The requested address is not
-  valid in its context` on Windows) rather than falling back to the
-  working A record.
-  **Bug fixed:** the first attempt at this put `strategy: "prefer_ipv4"`
-  directly on the `dns-local` server object itself
-  (`{ type: "local", tag: "dns-local", strategy: "prefer_ipv4" }`) — that
-  field doesn't exist on any DNS server type in sing-box's current schema
-  (confirmed via the official docs: `local` only accepts `type`/`tag`/
-  `prefer_go`/`neighbor_domain` plus the shared dial fields), so alpha
-  builds that actually validate against it hard-fail at startup
-  (`FATAL ... dns.servers[0].strategy: json: unknown field "strategy"`).
-  The only valid places for a resolution-strategy default are the
-  top-level `dns.strategy` (applies to the whole `dns` block, used here)
-  or a `strategy` field inside a `domain_resolver`/route-DNS-`route`-action
-  object — never directly on a server entry.
+- **IPv6 is disabled outright (`ipv4_only`), not merely deprioritized
+  (`prefer_ipv4`)** — every DNS/dial strategy this generator emits
+  (`dns.strategy`, `route.default_domain_resolver`'s `strategy`, the
+  structural `resolve` action's `strategy`, see "Output" further down) uses
+  `ipv4_only`. Deliberate product call, not just a bugfix: IPv6 uplinks are
+  unreliable enough on end-user machines (many have none at all, or a
+  broken/half-configured one) that even a *fallback* to IPv6 for the rare
+  IPv6-only target isn't worth the class of failures below — better to
+  never attempt it at all.
+  **Three-round bug hunt to get here, each surfaced by a real crash log:**
+  1. First attempt put `strategy: "prefer_ipv4"` directly on the
+     `dns-local` server object
+     (`{ type: "local", tag: "dns-local", strategy: "prefer_ipv4" }`) —
+     that field doesn't exist on any DNS server type in sing-box's current
+     schema (confirmed via the official docs: `local` only accepts
+     `type`/`tag`/`prefer_go`/`neighbor_domain` plus the shared dial
+     fields), so alpha builds that actually validate against it hard-fail
+     at startup (`FATAL ... dns.servers[0].strategy: json: unknown field
+     "strategy"`). Fixed by moving it to the top-level `dns.strategy`
+     field instead, which applies to the whole `dns` block and is a
+     real, non-deprecated field.
+  2. That alone wasn't enough: rule_set downloads (which dial out via
+     `route.default_domain_resolver`, left as a bare string tag like
+     `"dns-local"`) still hit an IPv6 address and failed
+     (`dial tcp [2a02:27ac::237]:443: connectex: The requested address is
+     not valid in its context`) even with `dns.strategy` set. Confirmed
+     via sing-box's own migration docs (outbound `domain_strategy` →
+     `domain_resolver`): outbound/dial-path resolution is a *separate*
+     mechanism from `dns.rules`-routed DNS-proxy queries, and only
+     respects a `strategy` set directly on the resolver it's given — the
+     global `dns.strategy` doesn't propagate there. Fixed by giving
+     `default_domain_resolver` the object form (`{ server: "dns-local",
+     strategy: "ipv4_only" }`, `RegionConfigResult.defaultDomainResolver`
+     widened from `string` to `string | Record<string, unknown>`) for all
+     three regions, not just Ukraine/Russia — Default's rule_set downloads
+     go through the same dial-path mechanism if the user adds their own
+     rule sets in Advanced mode, even though the region itself injects
+     none.
+  3. With both of those actually taking effect, `prefer_ipv4` was upgraded
+     to `ipv4_only` everywhere per the product call above, closing off the
+     rare remaining case (an IPv6-only target) that `prefer_ipv4` would
+     still have attempted.
 - **`domain_resolver` removed from `dns-remote`/`dns-direct` entirely** —
   an earlier version set `domain_resolver: { server: "dns-local",
   strategy: "prefer_ipv4" }` on both, intending to force IPv4 when
@@ -998,7 +1018,7 @@ together — both cookie-session based, both enforced via nginx
   `default_domain_resolver` is the one route-level field that is *not*
   preserved from the pasted config — see "Region selection" below for
   why. A third structural entry, `{"action":"resolve","strategy":
-  "prefer_ipv4"}`, is added conditionally — only when a rule matches on an
+  "ipv4_only"}`, is added conditionally — only when a rule matches on an
   IP directly (an `ip_cidr` condition, or a `rule_set` condition referencing
   a geoip rule set) — since geoip `.srs` data is IP-based and needs the
   destination resolved first, which isn't guaranteed outside tun inbounds.

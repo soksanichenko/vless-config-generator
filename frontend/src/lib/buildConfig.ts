@@ -193,8 +193,10 @@ export function buildOutputConfig(input: BuildConfigInput): SingBoxConfig {
 
   // Only added when a rule actually matches on an IP (ip_cidr or a geoip rule set) —
   // those need the destination resolved first, which isn't guaranteed outside tun inbounds.
+  // ipv4_only, not prefer_ipv4: IPv6 connectivity is unreliable enough on end-user
+  // machines (see regionConfig.ts's dns.strategy) that it's not worth even a fallback.
   if (needsIpResolve(input.rules, input.ruleSets) || regionNeedsIpResolve) {
-    structuralRules.push({ action: 'resolve', strategy: 'prefer_ipv4' })
+    structuralRules.push({ action: 'resolve', strategy: 'ipv4_only' })
   }
 
   const rules = [

@@ -6,10 +6,13 @@ export interface RegionConfigResult {
   /** Region-specific remote rule sets referenced by `dns.rules` above and/or `routeRules`
    * below — merged into route.rule_set. */
   extraRuleSets: Record<string, unknown>[]
-  /** Same tag as dns.final — route.default_domain_resolver must reference a server that
-   * actually exists in dns.servers above, so it can't be left as a passthrough from the
-   * pasted config. */
-  defaultDomainResolver: string
+  /** route.default_domain_resolver — must reference a server that actually exists in
+   * dns.servers above, so it can't be left as a passthrough from the pasted config.
+   * Ukraine/Russia use the object form ({ server, strategy: "ipv4_only" }): the global
+   * `dns.strategy` only governs dns.rules-routed DNS-proxy queries, not the separate
+   * resolution path outbound dialing (e.g. downloading a rule_set) actually uses — that
+   * one only respects a strategy set directly here. */
+  defaultDomainResolver: string | Record<string, unknown>
   /** Structural route.rules this region needs ahead of the user's own rules, e.g. to keep
    * the actual TCP/UDP routing in sync with what dns.rules already decided for a domain.
    * Empty when the region has nothing to add on top of the user's own rule builder. */
@@ -56,7 +59,7 @@ export function buildRegionConfig(
           ]
     return {
       dns: {
-        strategy: 'prefer_ipv4',
+        strategy: 'ipv4_only',
         servers: [
           { type: 'local', tag: 'dns-local' },
           {
@@ -119,7 +122,7 @@ export function buildRegionConfig(
         { rule_set: 'geoip-ua', outbound: directTag },
       ],
       needsIpResolve: true,
-      defaultDomainResolver: 'dns-local',
+      defaultDomainResolver: { server: 'dns-local', strategy: 'ipv4_only' },
     }
   }
 
@@ -151,7 +154,7 @@ export function buildRegionConfig(
           ]
     return {
       dns: {
-        strategy: 'prefer_ipv4',
+        strategy: 'ipv4_only',
         servers: [
           { type: 'local', tag: 'dns-local' },
           {
@@ -186,12 +189,13 @@ export function buildRegionConfig(
       // dependency on another GitHub-hosted .srs download for no behavioral change.
       routeRules: [],
       needsIpResolve: false,
-      defaultDomainResolver: 'dns-local',
+      defaultDomainResolver: { server: 'dns-local', strategy: 'ipv4_only' },
     }
   }
 
   return {
     dns: {
+      strategy: 'ipv4_only',
       servers: [{ type: 'https', tag: 'dns-remote', server: '1.1.1.1', path: '/dns-query' }],
       rules: [BLOCK_HTTPS_SVCB_RULE],
       final: 'dns-remote',
@@ -199,6 +203,6 @@ export function buildRegionConfig(
     extraRuleSets: [],
     routeRules: [],
     needsIpResolve: false,
-    defaultDomainResolver: 'dns-remote',
+    defaultDomainResolver: { server: 'dns-remote', strategy: 'ipv4_only' },
   }
 }

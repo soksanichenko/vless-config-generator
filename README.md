@@ -165,7 +165,7 @@ below.
 - **Output** — copy to clipboard or download the resulting `config.json`; a
   `sniff` rule and a DNS-hijack rule are always included ahead of your rules,
   since domain-based matching needs them to see anything at all. A `resolve`
-  action (`prefer_ipv4`) is added automatically when any rule matches on an
+  action (`ipv4_only`) is added automatically when any rule matches on an
   IP (an `ip_cidr` condition or a geoip rule set), since those need the
   destination resolved first. A "Show comments" toggle switches the display
   to an annotated, explanatory version of the same JSON (localized) — Copy
