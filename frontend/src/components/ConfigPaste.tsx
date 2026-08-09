@@ -16,7 +16,7 @@ export function ConfigPaste({ stepNumber, value, onChange, error }: Props) {
   const highlighted = useMemo(() => highlightJson(value), [value])
 
   return (
-    <div className="card">
+    <div className="card" id="config-paste-card">
       <h2>{stepNumber}. {t('configPaste.heading')}</h2>
       <p className="help-text">
         {t('configPaste.helpPart1')}

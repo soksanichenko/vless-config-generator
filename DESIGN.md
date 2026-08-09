@@ -731,7 +731,7 @@ the one-shot Copy/Download from the Output panel.
   `df432a40a850_create_saved_configs_table`): `id` (UUID PK), `email`
   (account key, same non-unique convention as `Client.email`), `config_text`
   (the final `config.json` text — not the rule-builder state that produced
-  it, so there's nothing to resume-edit, only to download again), `created_at`.
+  it), `created_at`.
 - Capped at `MAX_SAVED_CONFIGS_PER_ACCOUNT = 5` (`app.py`) — saving past the
   cap evicts the oldest row for that account rather than rejecting the save
   or growing unbounded. No per-config name: the UI lists entries by
@@ -758,6 +758,34 @@ the one-shot Copy/Download from the Output panel.
   client-side blob download exactly like the Output panel's own Download
   button, filename stamped from `createdAt` since there's no per-config
   name to use instead.
+- **Load** (third per-entry action, alongside Download/Delete): re-fetches
+  the full text the same way Download does, then hands it to a new
+  `onLoad: (configText: string) => void` prop (`App.tsx` passes
+  `setConfigText` directly — no new state needed) instead of triggering a
+  file download, and scrolls the page to the base-config card
+  (`document.getElementById('config-paste-card')`, an id added to
+  `ConfigPaste.tsx` for exactly this). Since a saved config is always this
+  tool's own prior output, pasting it back through `setConfigText` makes
+  it flow through the *existing* paste-and-parse pipeline unchanged —
+  `App.tsx`'s parsedConfig effect and `parseExistingRoute` (see "Importing
+  rules from a pasted config" further down) reconstruct the rule
+  builder's `rules`/`ruleSets` from its `route.rules`/`route.rule_set`
+  the same way they would for any hand-pasted config, so Load doubles as
+  "resume editing a previous generation" without a second, dedicated
+  resume mechanism. Only fires the reimport when the builder is currently
+  empty (that guard already existed, see "Importing rules..."), so
+  Loading over an in-progress edit updates the base config text but
+  leaves whatever's already in the rule builder alone, consistent with
+  pasting any other config over existing rules.
+  **Naming pitfall caught during testing:** labelled "Load" (not
+  "Завантажити"/"Загрузить", which already mean "Download" in this same
+  row — same category of mistake as the earlier Basic/Simple collision).
+  Even the English label alone still tripped up a Playwright selector:
+  `button:has-text("Load")` case-insensitively matches "Download" too
+  (`"download".includes("load")`), so a `.first()` grabbed the Output
+  panel's "Download config.json" button instead of this one — worth
+  remembering next time a button label happens to be a substring of
+  another nearby label, not just an exact word collision.
 
 ## Access control
 

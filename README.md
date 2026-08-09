@@ -174,11 +174,17 @@ below.
   [sing-box-tray-runner](https://github.com/soksanichenko/sing-box-tray-runner),
   the recommended way to actually run the generated config
 - **Saved configs** — a logged-in account (see "Client credentials" above)
-  can save the current output (`POST /api/saved-configs`) to download again
-  later, up to 5 slots; saving past the limit evicts the oldest one for that
-  account. Only the final `config.json` text is kept, not the rule-builder
-  state that produced it. Visitors who aren't logged in see a "Log in to
-  save" hint instead
+  can save the current output (`POST /api/saved-configs`) to come back to
+  later, up to 5 slots; saving past the limit evicts the oldest one for
+  that account. Only the final `config.json` text is kept, not the
+  rule-builder state that produced it. Each saved entry has three actions:
+  **Download** (as a file, same as the Output panel's own button), **Load**
+  (pastes it straight into the Base config.json box above and scrolls
+  there — since it's this tool's own prior output, the routing rules baked
+  into it get parsed back into the rule builder the same way any pasted
+  config would, see "Import existing rules from a pasted config" above),
+  and **Delete**. Visitors who aren't logged in see a "Log in to save"
+  hint instead
 - **Localization** — EN/UA/RU switcher (top-right, persisted in
   `localStorage`); every heading, help text, label, button, and warning is
   translated. Unlike zelgray.work's static error pages (`infra`'s

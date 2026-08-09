@@ -282,6 +282,9 @@ const DICT = {
     ua: 'Ще немає збережених конфігів.',
     ru: 'Пока нет сохранённых конфигов.',
   },
+  // "Load" (not "Завантажити"/"Загрузить") for loading into the base-config
+  // box below — those words already mean "Download" in this same row.
+  'savedConfigs.load': { en: 'Load', ua: 'Відкрити', ru: 'Открыть' },
   'savedConfigs.download': { en: 'Download', ua: 'Завантажити', ru: 'Скачать' },
   'savedConfigs.delete': { en: 'Delete', ua: 'Видалити', ru: 'Удалить' },
 

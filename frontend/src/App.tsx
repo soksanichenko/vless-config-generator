@@ -305,7 +305,12 @@ export function App() {
 
       <OutputPanel stepNumber={outputStep} config={outputConfig} warnings={warnings} />
 
-      <SavedConfigs stepNumber={savedConfigsStep} config={outputConfig} loggedIn={clients.length > 0} />
+      <SavedConfigs
+        stepNumber={savedConfigsStep}
+        config={outputConfig}
+        loggedIn={clients.length > 0}
+        onLoad={setConfigText}
+      />
     </div>
   )
 }

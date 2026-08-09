@@ -16,6 +16,7 @@ interface Props {
   stepNumber: number
   config: SingBoxConfig | null
   loggedIn: boolean
+  onLoad: (configText: string) => void
 }
 
 function downloadText(text: string, filename: string): void {
@@ -28,7 +29,7 @@ function downloadText(text: string, filename: string): void {
   URL.revokeObjectURL(url)
 }
 
-export function SavedConfigs({ stepNumber, config, loggedIn }: Props) {
+export function SavedConfigs({ stepNumber, config, loggedIn, onLoad }: Props) {
   const { t, lang } = useLang()
   const [saved, setSaved] = useState<SavedConfigMeta[]>([])
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'error'>('idle')
@@ -66,6 +67,17 @@ export function SavedConfigs({ stepNumber, config, loggedIn }: Props) {
       const detail = await fetchSavedConfig(item.id)
       const stamp = new Date(item.createdAt).toISOString().slice(0, 16).replace(/[:T]/g, '-')
       downloadText(detail.config, `sing-box-config-${stamp}.json`)
+    } catch (error: unknown) {
+      setActionError(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  async function handleLoad(item: SavedConfigMeta) {
+    setActionError(null)
+    try {
+      const detail = await fetchSavedConfig(item.id)
+      onLoad(detail.config)
+      document.getElementById('config-paste-card')?.scrollIntoView({ behavior: 'smooth' })
     } catch (error: unknown) {
       setActionError(error instanceof Error ? error.message : String(error))
     }
@@ -117,6 +129,9 @@ export function SavedConfigs({ stepNumber, config, loggedIn }: Props) {
             >
               <span>{new Date(item.createdAt).toLocaleString(DATE_LOCALE[lang])}</span>
               <div className="row">
+                <button type="button" onClick={() => handleLoad(item)}>
+                  {t('savedConfigs.load')}
+                </button>
                 <button type="button" onClick={() => handleDownload(item)}>
                   {t('savedConfigs.download')}
                 </button>
