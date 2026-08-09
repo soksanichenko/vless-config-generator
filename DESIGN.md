@@ -172,17 +172,14 @@ pre-existing `dns`-level keys in the pasted config pass through untouched.
   retagged `dns-local`/`dns-remote`/`dns-direct`.
 - **`dns.strategy: "prefer_ipv4"` at the top of the `dns` block** (Ukraine
   and Russia both) — global default resolution strategy for every server
-  in that `dns` block, distinct from the `domain_resolver.strategy`
-  already set on `dns-remote`/`dns-direct` (which only matters when a DoH
-  server's own `server` field is a domain name rather than a literal IP,
-  never the case here: `1.1.1.1`/`9.9.9.9`). Without a `prefer_ipv4`
-  default somewhere, `dns-local` (which is `default_domain_resolver` for
-  both regions, and therefore also resolves the rule_set download host)
-  could hand back an AAAA answer for a domain resolved through it, and the
-  download attempt then dials that IPv6 address directly; on a host with
-  no working IPv6 uplink this fails outright (`connectex: The requested
-  address is not valid in its context` on Windows) rather than falling
-  back to the working A record.
+  in that `dns` block. Without a `prefer_ipv4` default somewhere,
+  `dns-local` (which is `default_domain_resolver` for both regions, and
+  therefore also resolves the rule_set download host) could hand back an
+  AAAA answer for a domain resolved through it, and the download attempt
+  then dials that IPv6 address directly; on a host with no working IPv6
+  uplink this fails outright (`connectex: The requested address is not
+  valid in its context` on Windows) rather than falling back to the
+  working A record.
   **Bug fixed:** the first attempt at this put `strategy: "prefer_ipv4"`
   directly on the `dns-local` server object itself
   (`{ type: "local", tag: "dns-local", strategy: "prefer_ipv4" }`) — that
@@ -194,17 +191,31 @@ pre-existing `dns`-level keys in the pasted config pass through untouched.
   The only valid places for a resolution-strategy default are the
   top-level `dns.strategy` (applies to the whole `dns` block, used here)
   or a `strategy` field inside a `domain_resolver`/route-DNS-`route`-action
-  object (already in use for `dns-remote`/`dns-direct`, but moot for them
-  since their `server` is a literal IP) — never directly on a server
-  entry.
+  object — never directly on a server entry.
+- **`domain_resolver` removed from `dns-remote`/`dns-direct` entirely** —
+  an earlier version set `domain_resolver: { server: "dns-local",
+  strategy: "prefer_ipv4" }` on both, intending to force IPv4 when
+  resolving the DoH server's own hostname. That's dead configuration:
+  `domain_resolver` only ever fires when a DNS server's own `server` field
+  is itself a domain name needing resolution, and both servers use a
+  literal IP (`1.1.1.1`/`9.9.9.9`) — sing-box never had a hostname to
+  resolve there, so the field did nothing either way. Removed outright
+  rather than kept-but-inert, since its `strategy` sub-field reuses the
+  same schema as the DNS rule `route` action's own `strategy` — the one
+  already confirmed "Deprecated in sing-box 1.14.0 and will be removed in
+  sing-box 1.16.0" (see "Rule-set downloads" below for a case where a real
+  alpha build had already stopped accepting a field on that same
+  deprecation track ahead of the documented removal version) — no reason
+  to keep a config-shaped landmine around for a field that was never doing
+  anything in the first place.
 - **Ukraine — CDN direct-routing.** Ukraine's `final` is `proxy` (see below),
   so without an explicit carve-out, well-known CDN edge ranges (Cloudflare,
   Google, Fastly, AWS CloudFront) would take an unnecessary detour through
   the VLESS tunnel even though nothing about them is blocked in Ukraine —
   their anycast edges already sit a few ms away. `buildRegionConfig` adds four
   `Loyalsoldier/geoip` ASN-based rule sets (`cdn-cloudflare`/`cdn-google`/
-  `cdn-fastly`/`cdn-cloudfront`, downloaded direct via `download_detour` or
-  `http_client` depending on the Stable/Alpha target — see below) plus a structural
+  `cdn-fastly`/`cdn-cloudfront`, downloaded direct via `download_detour`
+  regardless of Stable/Alpha — see "Rule-set downloads" below) plus a structural
   `route.rules` block ahead of the user's own rules: `ip_is_private` →
   direct, `geoip-ru` → proxy, the four CDN rule sets → direct, `geoip-ua` →
   direct — in that exact order. **Order matters**: `geoip-ru` must be
@@ -277,17 +288,29 @@ what actually runs on a released sing-box today. Has no effect on the
   undocumented before 1.14.0, and the address-filter mechanism ("items in
   `ip_cidr` within included rule-sets also function as address filtering
   fields") is confirmed as the pre-1.14 idiom for this exact pattern.
-- **Rule-set downloads.** `download_detour` (a field on each `route.rule_set`
-  entry) is deprecated as of sing-box 1.14.0 and removed in 1.16.0, replaced
-  by `route.http_clients`/`default_http_client` plus a per-entry
-  `http_client` field. Since `Alpha` already requires 1.14.0 for the DNS
-  syntax above, it switches every Ukraine/Russia rule_set entry over to
-  `http_client` too (`regionConfig.ts`'s `ruleSetDownloadFields` helper,
-  tags `http-direct`/`http-proxy`); `buildConfig.ts` adds the matching
-  `route.http_clients` array and `default_http_client` whenever
-  `singboxTarget === 'alpha'` and at least one rule_set exists. `Stable`
-  keeps using `download_detour`, since `http_client` needs the same 1.14.0
-  baseline as the DNS syntax it's paired with.
+- **Rule-set downloads: `download_detour` kept unconditionally, not migrated
+  to `http_client`.** `download_detour` (a field on each `route.rule_set`
+  entry) is *documented* as deprecated since sing-box 1.14.0 and removed in
+  1.16.0, replaced by `route.http_clients`/`default_http_client` plus a
+  per-entry `http_client` field — Stable/Alpha originally switched on this
+  the same way it does for the DNS syntax above, on the assumption that a
+  build new enough to require `evaluate`/`match_response` would also have
+  `http_clients` implemented.
+  **Bug fixed:** that assumption was wrong. A real alpha build that already
+  hard-required the new DNS syntax (and already rejected the legacy
+  `dns.servers[].strategy` field, see "Region selection" above) still
+  failed outright on `route.http_clients` — `FATAL ... route.http_clients:
+  json: unknown field "http_clients"` — meaning the two migrations aren't
+  on the same implementation timeline in practice, whatever the docs'
+  version numbers suggest. `regionConfig.ts`'s rule_set entries now always
+  emit `download_detour` regardless of `singboxTarget` (the `alpha`-only
+  `ruleSetDownloadFields` helper and its `http-direct`/`http-proxy` tags
+  were removed entirely); `buildConfig.ts` unconditionally `delete`s
+  `route.http_clients`/`default_http_client` from the output rather than
+  ever setting them — not just because it no longer generates them, but so
+  that Loading an already-saved config from before this revert (see "Saved
+  configs" below) doesn't carry the stale fields through into a config
+  that would fail to decode.
 
 ## Basic / Advanced mode
 
@@ -1035,10 +1058,11 @@ together — both cookie-session based, both enforced via nginx
   not auto-injected).
 - Sing-box version target (`frontend/src/types/singboxTarget.ts`,
   `frontend/src/components/SingboxTargetSelector.tsx`) picks between two
-  DNS rule syntaxes for the Ukraine/Russia region profiles, and — since
-  sing-box 1.14.0 — between `download_detour` and `http_client` for
-  rule_set downloads — see "Sing-box version target (Stable / Alpha)"
-  above for the full rationale.
+  DNS rule syntaxes for the Ukraine/Russia region profiles only —
+  rule_set downloads always use `download_detour` regardless of this
+  setting (see "Rule-set downloads" under "Sing-box version target
+  (Stable / Alpha)" above for why the `http_client` migration was
+  reverted).
 - The Output panel links to
   [sing-box-tray-runner](https://github.com/soksanichenko/sing-box-tray-runner)
   as the recommended way to actually run the generated config

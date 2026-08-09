@@ -4,7 +4,7 @@ import type { VlessClient } from '../types/clients'
 import type { Region } from '../types/region'
 import type { MultiplexSettings } from '../types/multiplex'
 import type { SingboxTarget } from '../types/singboxTarget'
-import { buildRegionConfig, HTTP_CLIENT_DIRECT_TAG, HTTP_CLIENT_PROXY_TAG } from './regionConfig'
+import { buildRegionConfig } from './regionConfig'
 
 export interface BuildConfigInput {
   config: SingBoxConfig
@@ -240,20 +240,15 @@ export function buildOutputConfig(input: BuildConfigInput): SingBoxConfig {
     delete route.rule_set
   }
 
-  // `download_detour` on rule_set entries is deprecated since sing-box 1.14.0 (removed
-  // in 1.16.0) in favor of `http_client` — regionConfig.ts already switches rule_set
-  // entries over to it for the `alpha` target, so the referenced clients must exist here.
-  if (input.singboxTarget === 'alpha' && ruleSet.length > 0) {
-    route.http_clients = [
-      { tag: HTTP_CLIENT_DIRECT_TAG, detour: input.directTag },
-      { tag: HTTP_CLIENT_PROXY_TAG, detour: input.proxyTag },
-    ]
-    route.default_http_client =
-      input.defaultAction === 'direct' ? HTTP_CLIENT_DIRECT_TAG : HTTP_CLIENT_PROXY_TAG
-  } else {
-    delete route.http_clients
-    delete route.default_http_client
-  }
+  // `route.http_clients`/`http_client` (the documented replacement for the deprecated
+  // `download_detour`) turned out to not exist yet on a real sing-box alpha build that
+  // already required the newer DNS evaluate/match_response syntax ("unknown field
+  // http_clients") — the two migrations aren't actually on the same timeline, so this
+  // sticks with `download_detour` unconditionally (see regionConfig.ts) and only clears
+  // http_clients/default_http_client here in case a previously-saved/pasted config
+  // (e.g. via "Load" on a saved config from before this revert) still has them.
+  delete route.http_clients
+  delete route.default_http_client
 
   config.route = route
 
