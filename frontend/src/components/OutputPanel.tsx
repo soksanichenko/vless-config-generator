@@ -5,11 +5,12 @@ import type { SingBoxConfig } from '../types/singbox'
 import { useLang } from '../i18n/LangContext'
 
 interface Props {
+  stepNumber: number
   config: SingBoxConfig | null
   warnings: string[]
 }
 
-export function OutputPanel({ config, warnings }: Props) {
+export function OutputPanel({ stepNumber, config, warnings }: Props) {
   const { t, lang } = useLang()
   const [copied, setCopied] = useState(false)
   const [showComments, setShowComments] = useState(false)
@@ -37,7 +38,7 @@ export function OutputPanel({ config, warnings }: Props) {
 
   return (
     <div className="card">
-      <h2>{t('output.heading')}</h2>
+      <h2>{stepNumber}. {t('output.heading')}</h2>
       {warnings.map((warning) => (
         <div className="warning-banner" key={warning}>
           {warning}

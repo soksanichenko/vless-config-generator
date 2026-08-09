@@ -4,6 +4,7 @@ import type { Rule, RuleSetDef } from '../types/rules'
 import { useLang } from '../i18n/LangContext'
 
 interface Props {
+  stepNumber: number
   ruleSets: RuleSetDef[]
   rules: Rule[]
   onChangeRuleSets: (ruleSets: RuleSetDef[]) => void
@@ -12,7 +13,7 @@ interface Props {
 
 const PRESET_RULE_IDS = new Set(RESOURCE_PRESETS.map((preset) => presetRuleSetId(preset.id)))
 
-export function SimpleResourcePicker({ ruleSets, rules, onChangeRuleSets, onChangeRules }: Props) {
+export function SimpleResourcePicker({ stepNumber, ruleSets, rules, onChangeRuleSets, onChangeRules }: Props) {
   const { t } = useLang()
 
   function isChecked(presetId: string): boolean {
@@ -57,7 +58,7 @@ export function SimpleResourcePicker({ ruleSets, rules, onChangeRuleSets, onChan
 
   return (
     <div className="card">
-      <h2>{t('ruleList.heading')}</h2>
+      <h2>{stepNumber}. {t('ruleList.heading')}</h2>
       <p className="help-text">{t('simpleMode.help')}</p>
       <div className="chip-list">
         {RESOURCE_PRESETS.map((preset) => {

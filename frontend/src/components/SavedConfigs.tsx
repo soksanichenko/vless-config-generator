@@ -13,6 +13,7 @@ const MAX_SAVED_CONFIGS = 5
 const DATE_LOCALE: Record<'en' | 'ua' | 'ru', string> = { en: 'en', ua: 'uk', ru: 'ru' }
 
 interface Props {
+  stepNumber: number
   config: SingBoxConfig | null
   loggedIn: boolean
 }
@@ -27,7 +28,7 @@ function downloadText(text: string, filename: string): void {
   URL.revokeObjectURL(url)
 }
 
-export function SavedConfigs({ config, loggedIn }: Props) {
+export function SavedConfigs({ stepNumber, config, loggedIn }: Props) {
   const { t, lang } = useLang()
   const [saved, setSaved] = useState<SavedConfigMeta[]>([])
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'error'>('idle')
@@ -82,7 +83,7 @@ export function SavedConfigs({ config, loggedIn }: Props) {
 
   return (
     <div className="card">
-      <h2>{t('savedConfigs.heading')}</h2>
+      <h2>{stepNumber}. {t('savedConfigs.heading')}</h2>
       {!loggedIn && (
         <p className="help-text">
           {t('savedConfigs.loginHint')}{' '}

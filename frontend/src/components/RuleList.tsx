@@ -6,12 +6,13 @@ import type { Rule, RuleSetDef } from '../types/rules'
 import { useLang } from '../i18n/LangContext'
 
 interface Props {
+  stepNumber: number
   rules: Rule[]
   ruleSets: RuleSetDef[]
   onChange: (rules: Rule[]) => void
 }
 
-export function RuleList({ rules, ruleSets, onChange }: Props) {
+export function RuleList({ stepNumber, rules, ruleSets, onChange }: Props) {
   const { t } = useLang()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
 
@@ -41,7 +42,7 @@ export function RuleList({ rules, ruleSets, onChange }: Props) {
 
   return (
     <div className="card">
-      <h2>{t('ruleList.heading')}</h2>
+      <h2>{stepNumber}. {t('ruleList.heading')}</h2>
       <p className="help-text">{t('ruleList.help')}</p>
 
       {rules.length === 0 && <p className="help-text">{t('ruleList.empty')}</p>}

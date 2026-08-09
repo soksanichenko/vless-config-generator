@@ -78,19 +78,24 @@ below.
   `/api/clients` every 5s (same cadence as the admin dashboard's own
   status poll) until the
   GitHub Actions run confirms and it becomes usable
-- **Simple / Advanced mode** — a Basic/Advanced pill toggle above the
-  routing-rules step (labelled "Basic" rather than "Simple" so it doesn't
-  read like the unrelated per-rule Simple/Logical toggle inside Advanced
-  mode). Basic (the default) replaces the rule builder with a
+- **Basic / Advanced mode** — a single pill toggle at the top of the page,
+  governing the whole tool (labelled "Basic" rather than "Simple" so it
+  doesn't read like the unrelated per-rule Simple/Logical toggle inside
+  Advanced mode's rule builder). Basic is the default and a tight 7-step
+  flow: it hides Multiplexing and Sing-box version (see below — each keeps
+  a sensible default) and replaces the routing-rule builder with a
   checklist of popular, commonly-blocked-in-Russia services (RuTracker,
   Discord, Google, TikTok, YouTube) — checking one adds the matching
   `SagerNet/sing-geosite` rule set and a `-> proxy` rule with a single
-  click, no manual rule-building required. Advanced reveals the full rule
-  builder below instead; both write to the same underlying rules/rule-sets
-  state, so switching between them never discards anything — rules added
-  in Simple mode show up (and stay editable) in Advanced mode too, and any
-  rules Simple mode doesn't recognize (e.g. imported from a pasted config)
-  stay in effect even while hidden, with a note telling you how many
+  click, no manual rule-building required. Region stays visible in both
+  modes (see below for how it's auto-picked). Advanced reveals the full
+  9-step flow (Multiplexing/Sing-box version included) and the full rule
+  builder instead; both modes write to the same underlying
+  rules/rule-sets/region state, so switching between them never discards
+  anything — rules or a region picked in Basic mode show up (and stay
+  editable) in Advanced mode too, and any rules Basic mode doesn't
+  recognize (e.g. imported from a pasted config) stay in effect even while
+  hidden, with a note telling you how many
 - **Routing rule builder** — drag-reorderable rule list (first match wins),
   each rule combining any of: domain (exact/suffix/keyword/regex), rule sets
   (geosite/geoip `.srs`, both quick-add by category and custom URLs),
@@ -128,7 +133,12 @@ below.
   padding). Useful when an ISP caps concurrent TLS connections to one host.
   Enabling it removes the proxy outbound's `flow` (`xtls-rprx-vision`),
   since Vision and mux can't be combined
-- **Region** — dropdown (`Default` / `Ukraine` / `Russia`) that fully
+- **Region** — dropdown (`Default` / `Ukraine` / `Russia`), visible in both
+  Basic and Advanced. Auto-picked from the UI language (UA → Ukraine, RU →
+  Russia, EN → Default) until you pick one yourself in this dropdown —
+  from that point on, language and region change independently of each
+  other (switching language no longer touches your region choice, and
+  vice versa). Region fully
   regenerates the output's `dns` section: `Default` is plain Cloudflare DoH;
   `Ukraine` resolves locally by default and re-routes only domains whose
   resolved IP falls in Russia's geoip range through the VLESS tunnel (also

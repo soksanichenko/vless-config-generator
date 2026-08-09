@@ -22,6 +22,7 @@ import type { SingBoxConfig } from './types/singbox'
 import type { FinalAction, Rule, RuleSetDef } from './types/rules'
 import type { ClientsResponse, VlessClient } from './types/clients'
 import type { Whoami } from './types/whoami'
+import { regionForLang } from './types/region'
 import type { Region } from './types/region'
 import { DEFAULT_MULTIPLEX_SETTINGS } from './types/multiplex'
 import type { MultiplexSettings as MultiplexSettingsValue } from './types/multiplex'
@@ -61,9 +62,23 @@ export function App() {
     rules: Record<string, unknown>[]
   }>({ ruleSets: [], rules: [] })
   const [builderMode, setBuilderMode] = useState<BuilderMode>(DEFAULT_BUILDER_MODE)
-  const [region, setRegion] = useState<Region>('default')
+  const [region, setRegion] = useState<Region>(() => regionForLang(lang))
+  // Region tracks the UI language only until the user picks one explicitly —
+  // after that, language and region change independently of each other (see
+  // handleRegionChange below). Not tied to builderMode: the Region control
+  // is available in both Basic and Advanced.
+  const [regionFollowsLang, setRegionFollowsLang] = useState(true)
   const [multiplex, setMultiplex] = useState<MultiplexSettingsValue>(DEFAULT_MULTIPLEX_SETTINGS)
   const [singboxTarget, setSingboxTarget] = useState<SingboxTarget>(DEFAULT_SINGBOX_TARGET)
+
+  useEffect(() => {
+    if (regionFollowsLang) setRegion(regionForLang(lang))
+  }, [regionFollowsLang, lang])
+
+  function handleRegionChange(value: Region) {
+    setRegion(value)
+    setRegionFollowsLang(false)
+  }
 
   async function loadClients(): Promise<VlessClient[]> {
     const response = await fetch('/api/clients')
@@ -219,6 +234,13 @@ export function App() {
     singboxTarget,
   ])
 
+  const isAdvanced = builderMode === 'advanced'
+  const configPasteStep = isAdvanced ? 5 : 3
+  const routingRulesStep = isAdvanced ? 6 : 4
+  const defaultOutboundStep = isAdvanced ? 7 : 5
+  const outputStep = isAdvanced ? 8 : 6
+  const savedConfigsStep = isAdvanced ? 9 : 7
+
   return (
     <div className="app">
       <div className="app-header">
@@ -235,6 +257,8 @@ export function App() {
         </div>
       </div>
 
+      <BuilderModeToggle value={builderMode} onChange={setBuilderMode} />
+
       <ClientInfo
         clients={clients}
         selectedUuid={selectedUuid}
@@ -245,20 +269,23 @@ export function App() {
         onGenerateCredentials={handleGenerateCredentials}
       />
 
-      <RegionSelector value={region} onChange={setRegion} />
+      <RegionSelector value={region} onChange={handleRegionChange} />
 
-      <MultiplexSettings value={multiplex} onChange={setMultiplex} />
+      {isAdvanced && (
+        <>
+          <MultiplexSettings value={multiplex} onChange={setMultiplex} />
 
-      <SingboxTargetSelector value={singboxTarget} onChange={setSingboxTarget} />
+          <SingboxTargetSelector value={singboxTarget} onChange={setSingboxTarget} />
+        </>
+      )}
 
-      <ConfigPaste value={configText} onChange={setConfigText} error={parseError} />
+      <ConfigPaste stepNumber={configPasteStep} value={configText} onChange={setConfigText} error={parseError} />
 
       <ImportWarnings ruleSets={skippedImport.ruleSets} rules={skippedImport.rules} />
 
-      <BuilderModeToggle value={builderMode} onChange={setBuilderMode} />
-
-      {builderMode === 'simple' && (
+      {!isAdvanced && (
         <SimpleResourcePicker
+          stepNumber={routingRulesStep}
           ruleSets={ruleSets}
           rules={rules}
           onChangeRuleSets={setRuleSets}
@@ -266,19 +293,19 @@ export function App() {
         />
       )}
 
-      {builderMode === 'advanced' && (
+      {isAdvanced && (
         <>
           <RuleSetManager ruleSets={ruleSets} onChange={setRuleSets} />
 
-          <RuleList rules={rules} ruleSets={ruleSets} onChange={setRules} />
+          <RuleList stepNumber={routingRulesStep} rules={rules} ruleSets={ruleSets} onChange={setRules} />
         </>
       )}
 
-      <DefaultOutboundToggle value={defaultAction} onChange={setDefaultAction} />
+      <DefaultOutboundToggle stepNumber={defaultOutboundStep} value={defaultAction} onChange={setDefaultAction} />
 
-      <OutputPanel config={outputConfig} warnings={warnings} />
+      <OutputPanel stepNumber={outputStep} config={outputConfig} warnings={warnings} />
 
-      <SavedConfigs config={outputConfig} loggedIn={clients.length > 0} />
+      <SavedConfigs stepNumber={savedConfigsStep} config={outputConfig} loggedIn={clients.length > 0} />
     </div>
   )
 }

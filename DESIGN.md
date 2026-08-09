@@ -125,7 +125,10 @@ regionConfig.ts`, `frontend/src/types/region.ts`). Originally scoped to
 handful of `route.rules` once it became clear some of them (CDN direct-
 routing, see below) can't be decided correctly without also knowing the
 DNS-side geoip logic — so the dropdown, files, and types were renamed to
-`Region`/`region*` to stop implying a DNS-only scope. Same
+`Region`/`region*` to stop implying a DNS-only scope. The dropdown is
+visible in both Basic and Advanced mode, initially defaulting to whatever
+the UI language implies — see "Basic / Advanced mode" below ("Region by
+language") for the auto-follow-until-touched mechanism. Same
 replace-not-merge treatment `buildOutputConfig` already gives `route`:
 `dns.servers`/`dns.rules`/`dns.final` and `route.default_domain_resolver`
 are always fully replaced based on the picked region; any other
@@ -270,25 +273,71 @@ what actually runs on a released sing-box today. Has no effect on the
   keeps using `download_detour`, since `http_client` needs the same 1.14.0
   baseline as the DNS syntax it's paired with.
 
-## Simple mode / resource presets
+## Basic / Advanced mode
 
-The rule builder (conditions, logical AND/OR, invert, rule-set quick-add)
-targets someone comfortable thinking in sing-box's own routing model — too
-much for a visitor who just wants "unblock Discord and YouTube for me."
-Simple mode is a pill toggle
+The full tool (rule builder with conditions/logical AND/OR/invert/rule-set
+quick-add, plus the Region/Multiplexing/Sing-box-version cards) targets
+someone comfortable thinking in sing-box's own model — too much for a
+visitor who just wants "unblock Discord and YouTube for me." Basic/Advanced
+is a single, page-level pill toggle
 (`frontend/src/components/BuilderModeToggle.tsx`,
-`frontend/src/types/builderMode.ts`, default `simple`) above the
-routing-rules step that swaps which editor renders there, without
-introducing a second config-generation path: both modes write into the
-exact same `rules: Rule[]` / `ruleSets: RuleSetDef[]` state `buildConfig.ts`
-already consumes, so `buildOutputConfig` needs no changes at all, and
-nothing is lost switching back and forth. Labelled "Basic"/"Advanced", not
+`frontend/src/types/builderMode.ts`, default `simple`), rendered once near
+the top of the page (`App.tsx`, right under the header, above every other
+card) rather than per-section — it governs visibility for the whole tool,
+not just the routing-rules step. Labelled "Basic"/"Advanced", not
 "Simple"/"Advanced" — the per-rule condition editor already has its own
 unrelated Simple/Logical toggle (`ruleCard.modeSimple` — flat conditions
 vs. AND/OR branches) inside Advanced mode, and reusing the same word for a
 page-level toggle right above it reads as the same control at first
 glance (caught via a Playwright pass that literally couldn't disambiguate
 the two "Simple" buttons by text alone).
+
+- **Scope**: Basic hides only the Multiplexing and Sing-box-version cards
+  (each already had a sensible default: mux off, `stable` target) and
+  swaps the rule builder for the resource-preset checklist (below). Region
+  stays visible in both modes — see "Region by language" below for why it
+  isn't treated the same as Multiplexing/Sing-box-version. Everything else
+  (Client, Base config.json, Default outbound, Output, Saved configs)
+  renders in both modes unchanged. This isn't a second config-generation
+  path: every mode-gated control still writes into the exact same
+  `rules`/`ruleSets`/`region`/... state `buildConfig.ts` already consumes,
+  so `buildOutputConfig` needed no changes at all, and nothing is lost
+  switching back and forth — rules picked in Basic mode are exactly what
+  Advanced mode's rule builder shows the moment you switch, still fully
+  editable from there.
+- **Step numbers**: existing section headings had their step number baked
+  into the translated string (e.g. `"5. Base config.json"`). Hiding
+  Multiplexing/Sing-box-version in Basic mode would otherwise leave gaps
+  (`1, 2, 5, 6, ...`), so the five headings whose position actually
+  differs between modes (Base config.json, Routing rules, Default
+  outbound, Output, Saved configs) had their number stripped from the
+  translation string and moved to a `stepNumber: number` prop instead,
+  computed in `App.tsx` as one literal ternary per heading
+  (`isAdvanced ? 5 : 3`, etc.) — no generic counter abstraction, since
+  there are only ever exactly two fixed layouts (Basic's 7 steps, Advanced's
+  9). Client/Region/Multiplexing/Sing-box-version keep their static
+  baked-in numbers unchanged, since Client is always step 1, Region is
+  always step 2 (shown in both modes), and Multiplexing/Sing-box-version
+  are only ever shown in Advanced at their existing position.
+- **Region by language**: unlike Multiplexing/Sing-box-version, hiding
+  Region entirely in Basic mode was tried and reverted — dropping the
+  ability to pick a region independently of the UI language was too
+  rigid (there's no reason a Basic-mode visitor's language and desired
+  routing profile must always match, e.g. an EN-language visitor still
+  wanting the Russia profile). Instead: `region`'s `useState` initializes
+  from `regionForLang(lang)` (`frontend/src/types/region.ts`: `ua`→Ukraine,
+  `ru`→Russia, `en`→Default — the app is only localized into exactly the
+  languages it has region profiles for), and a `regionFollowsLang` flag
+  (default `true`) keeps re-deriving `region` from `lang` on every language
+  change — *until* the user picks a region explicitly via the dropdown
+  (`handleRegionChange` in `App.tsx`, wired to `RegionSelector.onChange`
+  in both modes), which flips `regionFollowsLang` to `false` and makes
+  language and region independent from that point on for the rest of the
+  session. Not tied to `builderMode` at all — the same auto-follow-until-
+  touched behavior applies whether the Region dropdown is being looked at
+  in Basic or Advanced.
+
+## Simple mode / resource presets
 
 - `frontend/src/lib/resourcePresets.ts` holds a small hardcoded catalog
   (`RESOURCE_PRESETS`) of popular, commonly-blocked-in-Russia services —
@@ -953,7 +1002,13 @@ together — both cookie-session based, both enforced via nginx
 - Saved configs (`models_db.SavedConfig`, `app.py`'s
   `/api/saved-configs*` routes, `frontend/src/components/SavedConfigs.tsx`)
   — see "Saved configs" above for the full rationale.
-- Simple mode / resource presets
-  (`frontend/src/components/BuilderModeToggle.tsx`,
-  `SimpleResourcePicker.tsx`, `frontend/src/lib/resourcePresets.ts`) — see
-  "Simple mode / resource presets" above for the full rationale.
+- Basic/Advanced mode (`frontend/src/components/BuilderModeToggle.tsx`,
+  `frontend/src/types/builderMode.ts`) governs the whole page and dynamic
+  per-heading step numbers in `App.tsx`, plus a language-derived Region
+  default that stays in effect until picked explicitly (`regionForLang` in
+  `frontend/src/types/region.ts`) — see "Basic / Advanced mode" above for
+  the full rationale.
+- Resource presets (`SimpleResourcePicker.tsx`,
+  `frontend/src/lib/resourcePresets.ts`), Basic mode's replacement for the
+  rule builder — see "Simple mode / resource presets" above for the full
+  rationale.

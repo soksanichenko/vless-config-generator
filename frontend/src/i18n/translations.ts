@@ -70,9 +70,9 @@ const DICT = {
 
   'region.heading': { en: '2. Region', ua: '2. Регіон', ru: '2. Регион' },
   'region.help': {
-    en: 'Picks a routing profile, affecting both the generated `dns` section and (for Ukraine) structural `route` rules ahead of your own. Ukraine resolves domains locally by default, routes lookups whose resolved IP is Russian through the proxy, and routes known CDN ranges direct; Russia resolves locally by default and routes only RKN-blocked domains through the proxy via DNS (matching `route` rules for those aren\'t added automatically — add them above). Default is plain Cloudflare DoH with no region-specific routing.',
-    ua: 'Обирає профіль маршрутизації, впливаючи як на згенеровану секцію `dns`, так і (для України) на структурні правила `route` попереду ваших власних. Україна за замовчуванням резолвить домени локально, спрямовує через проксі запити, чия IP-адреса виявляється російською, і напряму спрямовує відомі діапазони CDN; Росія за замовчуванням резолвить локально і спрямовує через проксі лише домени, заблоковані РКН, через DNS (відповідні правила `route` автоматично не додаються — додайте їх вище). Default — це звичайний Cloudflare DoH без маршрутизації по регіону.',
-    ru: 'Выбирает профиль маршрутизации, влияя как на сгенерированную секцию `dns`, так и (для Украины) на структурные правила `route` перед вашими собственными. Украина по умолчанию резолвит домены локально, направляет через прокси запросы, чей IP оказывается российским, и направляет известные диапазоны CDN напрямую; Россия по умолчанию резолвит локально и направляет через прокси только домены, заблокированные РКН, через DNS (соответствующие правила `route` автоматически не добавляются — добавьте их выше). Default — это обычный Cloudflare DoH без маршрутизации по региону.',
+    en: 'Picks a routing profile, affecting both the generated `dns` section and (for Ukraine) structural `route` rules ahead of your own. Ukraine resolves domains locally by default, routes lookups whose resolved IP is Russian through the proxy, and routes known CDN ranges direct; Russia resolves locally by default and routes only RKN-blocked domains through the proxy via DNS (matching `route` rules for those aren\'t added automatically — add them above). Default is plain Cloudflare DoH with no region-specific routing. Auto-picked from your interface language until you change it here yourself — after that, language and region no longer follow each other.',
+    ua: 'Обирає профіль маршрутизації, впливаючи як на згенеровану секцію `dns`, так і (для України) на структурні правила `route` попереду ваших власних. Україна за замовчуванням резолвить домени локально, спрямовує через проксі запити, чия IP-адреса виявляється російською, і напряму спрямовує відомі діапазони CDN; Росія за замовчуванням резолвить локально і спрямовує через проксі лише домени, заблоковані РКН, через DNS (відповідні правила `route` автоматично не додаються — додайте їх вище). Default — це звичайний Cloudflare DoH без маршрутизації по регіону. Спочатку підбирається автоматично за мовою інтерфейсу, поки ви не зміните його тут самі — після цього мова й регіон більше не пов’язані.',
+    ru: 'Выбирает профиль маршрутизации, влияя как на сгенерированную секцию `dns`, так и (для Украины) на структурные правила `route` перед вашими собственными. Украина по умолчанию резолвит домены локально, направляет через прокси запросы, чей IP оказывается российским, и направляет известные диапазоны CDN напрямую; Россия по умолчанию резолвит локально и направляет через прокси только домены, заблокированные РКН, через DNS (соответствующие правила `route` автоматически не добавляются — добавьте их выше). Default — это обычный Cloudflare DoH без маршрутизации по региону. Сначала подбирается автоматически по языку интерфейса, пока вы не смените его здесь сами — после этого язык и регион больше не связаны.',
   },
   'region.label': { en: 'Region', ua: 'Регіон', ru: 'Регион' },
   'region.optionDefault': { en: 'Default (Cloudflare)', ua: 'Default (Cloudflare)', ru: 'Default (Cloudflare)' },
@@ -109,7 +109,7 @@ const DICT = {
     ru: 'Alpha 1.14+ (evaluate/match_response)',
   },
 
-  'configPaste.heading': { en: '5. Base config.json', ua: '5. Базовий config.json', ru: '5. Базовый config.json' },
+  'configPaste.heading': { en: 'Base config.json', ua: 'Базовий config.json', ru: 'Базовый config.json' },
   'configPaste.helpPart1': {
     en: 'Paste your existing sing-box client config, or start from the default template below and edit it directly. Only the ',
     ua: 'Вставте наявний клієнтський конфіг sing-box або почніть із шаблону за замовчуванням нижче та редагуйте його напряму. Змінюється лише секція ',
@@ -169,7 +169,7 @@ const DICT = {
     ru: '{count} дополнительных правил из вашего вставленного конфига или режима "Расширенно" тоже действуют, но не показаны здесь — переключитесь на "Расширенно", чтобы их посмотреть.',
   },
 
-  'ruleList.heading': { en: '6. Routing rules', ua: '6. Правила маршрутизації', ru: '6. Правила маршрутизации' },
+  'ruleList.heading': { en: 'Routing rules', ua: 'Правила маршрутизації', ru: 'Правила маршрутизации' },
   'ruleList.help': {
     en: 'Matched top to bottom — the first matching rule wins. Drag the handle to reorder.',
     ua: 'Перевіряються згори вниз — перемагає перше правило, що збіглося. Перетягніть маркер, щоб змінити порядок.',
@@ -233,7 +233,7 @@ const DICT = {
   },
   'condition.commaSeparated': { en: '(comma-separated)', ua: '(через кому)', ru: '(через запятую)' },
 
-  'defaultOutbound.heading': { en: '7. Default outbound', ua: '7. Outbound за замовчуванням', ru: '7. Outbound по умолчанию' },
+  'defaultOutbound.heading': { en: 'Default outbound', ua: 'Outbound за замовчуванням', ru: 'Outbound по умолчанию' },
   'defaultOutbound.help': {
     en: "Where traffic goes when no rule above matches. Pick one — there's no implicit default.",
     ua: 'Куди йде трафік, якщо жодне правило вище не збіглося. Оберіть одне — неявного значення за замовчуванням немає.',
@@ -244,7 +244,7 @@ const DICT = {
   'common.proxy': { en: 'Proxy', ua: 'Проксі', ru: 'Прокси' },
   'common.reject': { en: 'Reject', ua: 'Відхилити', ru: 'Отклонить' },
 
-  'output.heading': { en: '8. Output', ua: '8. Результат', ru: '8. Результат' },
+  'output.heading': { en: 'Output', ua: 'Результат', ru: 'Результат' },
   'output.emptyState': {
     en: 'Paste a valid config above to see the output.',
     ua: 'Вставте коректний конфіг вище, щоб побачити результат.',
@@ -264,7 +264,7 @@ const DICT = {
     ru: 'Рекомендуемый способ запустить этот конфиг:',
   },
 
-  'savedConfigs.heading': { en: '9. Saved configs', ua: '9. Збережені конфіги', ru: '9. Сохранённые конфиги' },
+  'savedConfigs.heading': { en: 'Saved configs', ua: 'Збережені конфіги', ru: 'Сохранённые конфиги' },
   'savedConfigs.help': {
     en: 'Save the current output to your account (up to {max} — saving past the limit removes the oldest one).',
     ua: 'Збережіть поточний результат у свій акаунт (до {max} — після ліміту найстаріший видаляється).',

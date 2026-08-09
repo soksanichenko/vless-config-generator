@@ -4,19 +4,20 @@ import { highlightJson } from '../lib/jsonHighlight'
 import { useLang } from '../i18n/LangContext'
 
 interface Props {
+  stepNumber: number
   value: string
   onChange: (value: string) => void
   error: string | null
 }
 
-export function ConfigPaste({ value, onChange, error }: Props) {
+export function ConfigPaste({ stepNumber, value, onChange, error }: Props) {
   const { t } = useLang()
   const highlightRef = useRef<HTMLPreElement>(null)
   const highlighted = useMemo(() => highlightJson(value), [value])
 
   return (
     <div className="card">
-      <h2>{t('configPaste.heading')}</h2>
+      <h2>{stepNumber}. {t('configPaste.heading')}</h2>
       <p className="help-text">
         {t('configPaste.helpPart1')}
         <code>route</code>
