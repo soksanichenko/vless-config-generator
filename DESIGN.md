@@ -331,6 +331,27 @@ what actually runs on a released sing-box today. Has no effect on the
   that Loading an already-saved config from before this revert (see "Saved
   configs" below) doesn't carry the stale fields through into a config
   that would fail to decode.
+- **Auto-detected on paste/Load** (`frontend/src/lib/detectSingboxTarget.ts`,
+  wired into `App.tsx` as its own `useEffect` keyed on `parsedConfig`,
+  alongside the existing direct/proxy-tag and rule-import detection).
+  Recovers which target a config's `dns.rules` were actually built for,
+  not what the user's sing-box binary needs — no config.json can ever say
+  that, there's no version field. Two-tier signature, checked in order:
+  `action === "evaluate"` on any rule only ever appears in this tool's
+  `alpha` output → `alpha`; failing that, a `rule_set` condition with no
+  `action` field is the pre-1.14 legacy address-filter shape `stable`
+  output uses for its geoip checks → `stable`. The same no-`action`
+  `rule_set` shape also appears in a plain geosite domain match shared by
+  *both* targets (e.g. `{ rule_set: ["geosite-ru-blocked"], server:
+  "dns-remote" }`), which would misfire as a false "stable" signal on its
+  own — harmless here only because it's checked second, after `evaluate`
+  has already had first say. Returns `null` (no change) for the Default
+  region or any config that matches neither shape, rather than guessing.
+  Motivated directly by a support loop in this session: after fixing the
+  legacy-address-filter crash by switching to `alpha`, loading an
+  older-saved `stable` config (or vice versa) silently left the target
+  dropdown on whatever it last was, reintroducing the same crash the fix
+  had just resolved — one manual step the user had to remember every time.
 
 ## Basic / Advanced mode
 
@@ -1100,3 +1121,7 @@ together — both cookie-session based, both enforced via nginx
   `frontend/src/lib/resourcePresets.ts`), Basic mode's replacement for the
   rule builder — see "Simple mode / resource presets" above for the full
   rationale.
+- Sing-box target auto-detection on paste/Load
+  (`frontend/src/lib/detectSingboxTarget.ts`) — see "Sing-box version
+  target (Stable / Alpha)" above ("Auto-detected on paste/Load") for the
+  full rationale.

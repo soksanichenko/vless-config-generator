@@ -159,7 +159,12 @@ below.
   setting — its documented replacement (`route.http_clients`) turned out
   not to exist yet on a real alpha build that already required the
   `evaluate`/`match_response` syntax, so this generator doesn't emit it.
-  Has no effect for the Default region
+  Has no effect for the Default region. Auto-detected on paste/Load: if the
+  pasted or loaded config's `dns.rules` already show one target's syntax
+  (`evaluate` for Alpha, the legacy single-step address filter for
+  Stable), the dropdown switches to match — this only recovers which
+  target a *document* was built for, not what your actual sing-box binary
+  needs, so it can't help on a blank/from-scratch config
 - **Syntax-highlighted JSON** — both the base-config editor and the output
   panel highlight JSON tokens as you type/view
 - **Output** — copy to clipboard or download the resulting `config.json`; a

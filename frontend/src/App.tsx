@@ -17,6 +17,7 @@ import { UserMenu } from './components/UserMenu'
 import { buildOutputConfig } from './lib/buildConfig'
 import { DEFAULT_CONFIG_TEXT } from './lib/defaultConfig'
 import { parseExistingRoute } from './lib/parseRoute'
+import { detectSingboxTarget } from './lib/detectSingboxTarget'
 import { listOutbounds } from './types/singbox'
 import type { SingBoxConfig } from './types/singbox'
 import type { FinalAction, Rule, RuleSetDef } from './types/rules'
@@ -187,6 +188,16 @@ export function App() {
       setSkippedImport({ ruleSets: parsed.skippedRuleSets, rules: parsed.skippedRules })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parsedConfig])
+
+  // Auto-detect which Sing-box version target a pasted/loaded config's DNS rules were
+  // generated for (evaluate/match_response => alpha, legacy address-filter => stable) —
+  // see detectSingboxTarget's own docs for why this can only recover the target a
+  // document was built for, not what the user's actual sing-box binary needs.
+  useEffect(() => {
+    if (!parsedConfig) return
+    const detected = detectSingboxTarget(parsedConfig)
+    if (detected) setSingboxTarget(detected)
   }, [parsedConfig])
 
   const warnings = useMemo(() => {
