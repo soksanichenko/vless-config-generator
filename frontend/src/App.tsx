@@ -4,6 +4,8 @@ import { ConfigPaste } from './components/ConfigPaste'
 import { ImportWarnings } from './components/ImportWarnings'
 import { RuleSetManager } from './components/RuleSetManager'
 import { RuleList } from './components/RuleList'
+import { BuilderModeToggle } from './components/BuilderModeToggle'
+import { SimpleResourcePicker } from './components/SimpleResourcePicker'
 import { DefaultOutboundToggle } from './components/DefaultOutboundToggle'
 import { RegionSelector } from './components/RegionSelector'
 import { MultiplexSettings } from './components/MultiplexSettings'
@@ -25,6 +27,8 @@ import { DEFAULT_MULTIPLEX_SETTINGS } from './types/multiplex'
 import type { MultiplexSettings as MultiplexSettingsValue } from './types/multiplex'
 import { DEFAULT_SINGBOX_TARGET } from './types/singboxTarget'
 import type { SingboxTarget } from './types/singboxTarget'
+import { DEFAULT_BUILDER_MODE } from './types/builderMode'
+import type { BuilderMode } from './types/builderMode'
 import { useLang } from './i18n/LangContext'
 
 export function App() {
@@ -56,6 +60,7 @@ export function App() {
     ruleSets: Record<string, unknown>[]
     rules: Record<string, unknown>[]
   }>({ ruleSets: [], rules: [] })
+  const [builderMode, setBuilderMode] = useState<BuilderMode>(DEFAULT_BUILDER_MODE)
   const [region, setRegion] = useState<Region>('default')
   const [multiplex, setMultiplex] = useState<MultiplexSettingsValue>(DEFAULT_MULTIPLEX_SETTINGS)
   const [singboxTarget, setSingboxTarget] = useState<SingboxTarget>(DEFAULT_SINGBOX_TARGET)
@@ -250,9 +255,24 @@ export function App() {
 
       <ImportWarnings ruleSets={skippedImport.ruleSets} rules={skippedImport.rules} />
 
-      <RuleSetManager ruleSets={ruleSets} onChange={setRuleSets} />
+      <BuilderModeToggle value={builderMode} onChange={setBuilderMode} />
 
-      <RuleList rules={rules} ruleSets={ruleSets} onChange={setRules} />
+      {builderMode === 'simple' && (
+        <SimpleResourcePicker
+          ruleSets={ruleSets}
+          rules={rules}
+          onChangeRuleSets={setRuleSets}
+          onChangeRules={setRules}
+        />
+      )}
+
+      {builderMode === 'advanced' && (
+        <>
+          <RuleSetManager ruleSets={ruleSets} onChange={setRuleSets} />
+
+          <RuleList rules={rules} ruleSets={ruleSets} onChange={setRules} />
+        </>
+      )}
 
       <DefaultOutboundToggle value={defaultAction} onChange={setDefaultAction} />
 

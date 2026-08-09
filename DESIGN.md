@@ -202,11 +202,17 @@ pre-existing `dns`-level keys in the pasted config pass through untouched.
 - **Known gap, deliberately left manual:** beyond the Ukraine CDN/geoip
   block above, region selection does not override the default-outbound
   toggle (`DefaultOutboundToggle` remains the sole owner of `route.final`),
-  and Russia still has no auto-injected `route.rules` for
-  `geosite-ru-blocked`/`geoip-ru-blocked` → proxy — add that manually via
-  the rule builder if you pick the Russia region, or a domain/IP can
-  resolve "correctly" (through the right DNS path) while the actual
-  TCP/UDP connection still goes the wrong way and hits a block.
+  and Russia still has no auto-injected `route.rules` for the aggregate
+  `geosite-ru-blocked`/`geoip-ru-blocked` rule sets → proxy — add that
+  manually via the (Advanced) rule builder if you want that broad,
+  runetfreedom-curated coverage, or a domain/IP can resolve "correctly"
+  (through the right DNS path) while the actual TCP/UDP connection still
+  goes the wrong way and hits a block. Simple mode's resource presets (see
+  "Simple mode / resource presets" below) cover the same underlying need
+  for a handful of specific popular services with one click each, via
+  their own plain `SagerNet/sing-geosite` categories rather than this
+  aggregate list — a narrower but more explicit/curated alternative, not a
+  literal fix for this gap.
 
 ## Sing-box version target (Stable / Alpha)
 
@@ -263,6 +269,61 @@ what actually runs on a released sing-box today. Has no effect on the
   `singboxTarget === 'alpha'` and at least one rule_set exists. `Stable`
   keeps using `download_detour`, since `http_client` needs the same 1.14.0
   baseline as the DNS syntax it's paired with.
+
+## Simple mode / resource presets
+
+The rule builder (conditions, logical AND/OR, invert, rule-set quick-add)
+targets someone comfortable thinking in sing-box's own routing model — too
+much for a visitor who just wants "unblock Discord and YouTube for me."
+Simple mode is a pill toggle
+(`frontend/src/components/BuilderModeToggle.tsx`,
+`frontend/src/types/builderMode.ts`, default `simple`) above the
+routing-rules step that swaps which editor renders there, without
+introducing a second config-generation path: both modes write into the
+exact same `rules: Rule[]` / `ruleSets: RuleSetDef[]` state `buildConfig.ts`
+already consumes, so `buildOutputConfig` needs no changes at all, and
+nothing is lost switching back and forth. Labelled "Basic"/"Advanced", not
+"Simple"/"Advanced" — the per-rule condition editor already has its own
+unrelated Simple/Logical toggle (`ruleCard.modeSimple` — flat conditions
+vs. AND/OR branches) inside Advanced mode, and reusing the same word for a
+page-level toggle right above it reads as the same control at first
+glance (caught via a Playwright pass that literally couldn't disambiguate
+the two "Simple" buttons by text alone).
+
+- `frontend/src/lib/resourcePresets.ts` holds a small hardcoded catalog
+  (`RESOURCE_PRESETS`) of popular, commonly-blocked-in-Russia services —
+  RuTracker, Discord, Google, TikTok, YouTube — chosen to match this
+  feature's original ask. Each preset is just a plain
+  `SagerNet/sing-geosite` category name (confirmed to exist for all five,
+  including `rutracker` — an earlier assumption that it wasn't in that repo
+  was wrong); no custom rule-set source needed. Extending the list (e.g.
+  for other regions/audiences) means adding entries here, no other code
+  changes.
+- `frontend/src/components/SimpleResourcePicker.tsx` renders the catalog as
+  checkboxes (`.chip-list`/`.chip`, reusing `RuleSetManager`'s existing
+  visual style). Checking one adds a `RuleSetDef` (id `preset-<id>`, tag
+  `geosite-<category>`) plus a `Rule` (same id, `rule_set` condition,
+  `action: 'proxy'`) — the same two objects Advanced mode's "quick-add
+  category" + "build a rule referencing it" would produce by hand, just in
+  one click. Unchecking removes both by that same deterministic id. If a
+  same-tagged rule set already exists (e.g. added by hand in Advanced mode
+  first), checking the preset reuses it instead of creating a duplicate —
+  but unchecking then only removes the preset's own rule, never a
+  hand-added rule set it doesn't own.
+- Because the two modes share state, Simple mode can end up with rules it
+  doesn't recognize — imported from a pasted config, or added earlier in
+  Advanced mode. Those still apply to the generated output (nothing here
+  filters `rules` at build time), they're just not shown as a checkbox;
+  `SimpleResourcePicker` surfaces a count-based hint pointing back to
+  Advanced instead of silently hiding them.
+- Deliberately independent of the Region dropdown (see "Region selection"
+  above): a preset's `rule_set` condition matches on the sniffed
+  destination domain directly, via the same structural `sniff` rule every
+  output already has, regardless of which DNS region is selected — so
+  these checkboxes work the same in Default/Ukraine/Russia. The catalog's
+  *content* is RU-focused for now (see "Known gap, deliberately left
+  manual" above for how this relates to the Russia region's own
+  `geosite-ru-blocked`/`geoip-ru-blocked` gap), not the mechanism itself.
 
 ## Multiplexing (mux)
 
@@ -892,3 +953,7 @@ together — both cookie-session based, both enforced via nginx
 - Saved configs (`models_db.SavedConfig`, `app.py`'s
   `/api/saved-configs*` routes, `frontend/src/components/SavedConfigs.tsx`)
   — see "Saved configs" above for the full rationale.
+- Simple mode / resource presets
+  (`frontend/src/components/BuilderModeToggle.tsx`,
+  `SimpleResourcePicker.tsx`, `frontend/src/lib/resourcePresets.ts`) — see
+  "Simple mode / resource presets" above for the full rationale.

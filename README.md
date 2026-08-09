@@ -78,6 +78,19 @@ below.
   `/api/clients` every 5s (same cadence as the admin dashboard's own
   status poll) until the
   GitHub Actions run confirms and it becomes usable
+- **Simple / Advanced mode** — a Basic/Advanced pill toggle above the
+  routing-rules step (labelled "Basic" rather than "Simple" so it doesn't
+  read like the unrelated per-rule Simple/Logical toggle inside Advanced
+  mode). Basic (the default) replaces the rule builder with a
+  checklist of popular, commonly-blocked-in-Russia services (RuTracker,
+  Discord, Google, TikTok, YouTube) — checking one adds the matching
+  `SagerNet/sing-geosite` rule set and a `-> proxy` rule with a single
+  click, no manual rule-building required. Advanced reveals the full rule
+  builder below instead; both write to the same underlying rules/rule-sets
+  state, so switching between them never discards anything — rules added
+  in Simple mode show up (and stay editable) in Advanced mode too, and any
+  rules Simple mode doesn't recognize (e.g. imported from a pasted config)
+  stay in effect even while hidden, with a note telling you how many
 - **Routing rule builder** — drag-reorderable rule list (first match wins),
   each rule combining any of: domain (exact/suffix/keyword/regex), rule sets
   (geosite/geoip `.srs`, both quick-add by category and custom URLs),

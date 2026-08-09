@@ -153,6 +153,22 @@ const DICT = {
   'ruleSets.urlPlaceholder': { en: 'https://.../custom.srs', ua: 'https://.../custom.srs', ru: 'https://.../custom.srs' },
   'ruleSets.removeAria': { en: 'Remove {tag}', ua: 'Видалити {tag}', ru: 'Удалить {tag}' },
 
+  // Labelled "Basic", not "Simple", to avoid colliding with the unrelated
+  // per-rule Simple/Logical toggle (ruleCard.modeSimple) inside Advanced mode.
+  'builderMode.simple': { en: 'Basic', ua: 'Базовий', ru: 'Базовый' },
+  'builderMode.advanced': { en: 'Advanced', ua: 'Розширено', ru: 'Расширенно' },
+
+  'simpleMode.help': {
+    en: 'Check the services you want to reach through the proxy. Need finer control (domains, ports, process names, ...)? Switch to Advanced above.',
+    ua: 'Позначте сервіси, які потрібно відкривати через проксі. Потрібен тонший контроль (домени, порти, назви процесів тощо)? Перемкніться на "Розширено" вище.',
+    ru: 'Отметьте сервисы, которые нужно открывать через прокси. Нужен более тонкий контроль (домены, порты, имена процессов и т.д.)? Переключитесь на "Расширенно" выше.',
+  },
+  'simpleMode.extraRulesHint': {
+    en: '{count} additional rule(s) from your pasted config or Advanced mode also apply, but aren’t shown here — switch to Advanced to review them.',
+    ua: '{count} додаткові правила з вашого вставленого конфігу або режиму "Розширено" також діють, але не показані тут — перемкніться на "Розширено", щоб їх переглянути.',
+    ru: '{count} дополнительных правил из вашего вставленного конфига или режима "Расширенно" тоже действуют, но не показаны здесь — переключитесь на "Расширенно", чтобы их посмотреть.',
+  },
+
   'ruleList.heading': { en: '6. Routing rules', ua: '6. Правила маршрутизації', ru: '6. Правила маршрутизации' },
   'ruleList.help': {
     en: 'Matched top to bottom — the first matching rule wins. Drag the handle to reorder.',
