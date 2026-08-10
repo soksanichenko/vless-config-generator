@@ -9,7 +9,6 @@ import { SimpleResourcePicker } from './components/SimpleResourcePicker'
 import { DefaultOutboundToggle } from './components/DefaultOutboundToggle'
 import { RegionSelector } from './components/RegionSelector'
 import { MultiplexSettings } from './components/MultiplexSettings'
-import { SingboxTargetSelector } from './components/SingboxTargetSelector'
 import { OutputPanel } from './components/OutputPanel'
 import { SavedConfigs } from './components/SavedConfigs'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
@@ -17,7 +16,6 @@ import { UserMenu } from './components/UserMenu'
 import { buildOutputConfig } from './lib/buildConfig'
 import { DEFAULT_CONFIG_TEXT } from './lib/defaultConfig'
 import { parseExistingRoute } from './lib/parseRoute'
-import { detectSingboxTarget } from './lib/detectSingboxTarget'
 import { listOutbounds } from './types/singbox'
 import type { SingBoxConfig } from './types/singbox'
 import type { FinalAction, Rule, RuleSetDef } from './types/rules'
@@ -27,8 +25,6 @@ import { regionForLang } from './types/region'
 import type { Region } from './types/region'
 import { DEFAULT_MULTIPLEX_SETTINGS } from './types/multiplex'
 import type { MultiplexSettings as MultiplexSettingsValue } from './types/multiplex'
-import { DEFAULT_SINGBOX_TARGET } from './types/singboxTarget'
-import type { SingboxTarget } from './types/singboxTarget'
 import { DEFAULT_BUILDER_MODE } from './types/builderMode'
 import type { BuilderMode } from './types/builderMode'
 import { useLang } from './i18n/LangContext'
@@ -70,7 +66,6 @@ export function App() {
   // is available in both Basic and Advanced.
   const [regionFollowsLang, setRegionFollowsLang] = useState(true)
   const [multiplex, setMultiplex] = useState<MultiplexSettingsValue>(DEFAULT_MULTIPLEX_SETTINGS)
-  const [singboxTarget, setSingboxTarget] = useState<SingboxTarget>(DEFAULT_SINGBOX_TARGET)
 
   useEffect(() => {
     if (regionFollowsLang) setRegion(regionForLang(lang))
@@ -190,16 +185,6 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsedConfig])
 
-  // Auto-detect which Sing-box version target a pasted/loaded config's DNS rules were
-  // generated for (evaluate/match_response => alpha, legacy address-filter => stable) —
-  // see detectSingboxTarget's own docs for why this can only recover the target a
-  // document was built for, not what the user's actual sing-box binary needs.
-  useEffect(() => {
-    if (!parsedConfig) return
-    const detected = detectSingboxTarget(parsedConfig)
-    if (detected) setSingboxTarget(detected)
-  }, [parsedConfig])
-
   const warnings = useMemo(() => {
     const messages: string[] = []
     if (parsedConfig && !directTag) messages.push(t('warnings.noDirect'))
@@ -216,41 +201,44 @@ export function App() {
     return messages
   }, [parsedConfig, directTag, proxyTag, rules, t])
 
+  const isAdvanced = builderMode === 'advanced'
+  // Basic mode has no default-outbound step at all — traffic that misses every
+  // rule just goes direct, matching the "everything unlisted is untouched" mental
+  // model the rest of Basic mode already uses.
+  const effectiveDefaultAction = isAdvanced ? defaultAction : 'direct'
+
   const outputConfig = useMemo(() => {
     if (!parsedConfig) return null
     return buildOutputConfig({
       config: parsedConfig,
       rules,
       ruleSets,
-      defaultAction,
+      defaultAction: effectiveDefaultAction,
       directTag,
       proxyTag,
       proxyOutboundIndex,
       selectedClient: client,
       region,
       multiplex,
-      singboxTarget,
     })
   }, [
     parsedConfig,
     rules,
     ruleSets,
-    defaultAction,
+    effectiveDefaultAction,
     directTag,
     proxyTag,
     proxyOutboundIndex,
     client,
     region,
     multiplex,
-    singboxTarget,
   ])
 
-  const isAdvanced = builderMode === 'advanced'
-  const configPasteStep = isAdvanced ? 5 : 3
-  const routingRulesStep = isAdvanced ? 6 : 4
-  const defaultOutboundStep = isAdvanced ? 7 : 5
-  const outputStep = isAdvanced ? 8 : 6
-  const savedConfigsStep = isAdvanced ? 9 : 7
+  const configPasteStep = isAdvanced ? 4 : 3
+  const routingRulesStep = isAdvanced ? 5 : 4
+  const defaultOutboundStep = isAdvanced ? 6 : 0
+  const outputStep = isAdvanced ? 7 : 5
+  const savedConfigsStep = isAdvanced ? 8 : 6
 
   return (
     <div className="app">
@@ -282,13 +270,7 @@ export function App() {
 
       <RegionSelector value={region} onChange={handleRegionChange} />
 
-      {isAdvanced && (
-        <>
-          <MultiplexSettings value={multiplex} onChange={setMultiplex} />
-
-          <SingboxTargetSelector value={singboxTarget} onChange={setSingboxTarget} />
-        </>
-      )}
+      {isAdvanced && <MultiplexSettings value={multiplex} onChange={setMultiplex} />}
 
       <ConfigPaste stepNumber={configPasteStep} value={configText} onChange={setConfigText} error={parseError} />
 
@@ -312,7 +294,9 @@ export function App() {
         </>
       )}
 
-      <DefaultOutboundToggle stepNumber={defaultOutboundStep} value={defaultAction} onChange={setDefaultAction} />
+      {isAdvanced && (
+        <DefaultOutboundToggle stepNumber={defaultOutboundStep} value={defaultAction} onChange={setDefaultAction} />
+      )}
 
       <OutputPanel stepNumber={outputStep} config={outputConfig} warnings={warnings} />
 

@@ -91,24 +91,6 @@ const DICT = {
   'multiplex.minStreams': { en: 'Min streams', ua: 'Мін. потоків', ru: 'Мин. потоков' },
   'multiplex.padding': { en: 'Padding', ua: 'Padding', ru: 'Padding' },
 
-  'singboxTarget.heading': { en: '4. Sing-box version', ua: '4. Версія sing-box', ru: '4. Версия sing-box' },
-  'singboxTarget.help': {
-    en: 'Picks the DNS rule syntax used by the region profile above (Ukraine/Russia). "Stable" uses classic single-step rules (rule_set/ip_cidr matched directly against the query response) — works on any current sing-box release. "Alpha" uses evaluate/match_response two-step rules, which need sing-box 1.14.0 — not released as stable yet, only as alpha builds. Has no effect for the Default region.',
-    ua: 'Обирає синтаксис DNS-правил, що використовує профіль регіону вище (Україна/Росія). "Stable" використовує класичні одноетапні правила (rule_set/ip_cidr зіставляються напряму з відповіддю на запит) — працює на будь-якому поточному релізі sing-box. "Alpha" використовує двоетапні правила evaluate/match_response, які потребують sing-box 1.14.0 — ще не випущено як stable, лише як alpha-збірки. Не впливає на регіон Default.',
-    ru: 'Выбирает синтаксис DNS-правил, который использует профиль региона выше (Украина/Россия). "Stable" использует классические одноэтапные правила (rule_set/ip_cidr сопоставляются напрямую с ответом на запрос) — работает на любом текущем релизе sing-box. "Alpha" использует двухэтапные правила evaluate/match_response, которым нужен sing-box 1.14.0 — ещё не выпущен как stable, только как alpha-сборки. Не влияет на регион Default.',
-  },
-  'singboxTarget.label': { en: 'Target', ua: 'Ціль', ru: 'Цель' },
-  'singboxTarget.optionStable': {
-    en: 'Stable (classic DNS rules)',
-    ua: 'Stable (класичні DNS-правила)',
-    ru: 'Stable (классические DNS-правила)',
-  },
-  'singboxTarget.optionAlpha': {
-    en: 'Alpha 1.14+ (evaluate/match_response)',
-    ua: 'Alpha 1.14+ (evaluate/match_response)',
-    ru: 'Alpha 1.14+ (evaluate/match_response)',
-  },
-
   'configPaste.heading': { en: 'Base config.json', ua: 'Базовий config.json', ru: 'Базовый config.json' },
   'configPaste.helpPart1': {
     en: 'Paste your existing sing-box client config, or start from the default template below and edit it directly. Only the ',
@@ -159,9 +141,14 @@ const DICT = {
   'builderMode.advanced': { en: 'Advanced', ua: 'Розширено', ru: 'Расширенно' },
 
   'simpleMode.help': {
-    en: 'Check the services you want to reach through the proxy. Need finer control (domains, ports, process names, ...)? Switch to Advanced above.',
-    ua: 'Позначте сервіси, які потрібно відкривати через проксі. Потрібен тонший контроль (домени, порти, назви процесів тощо)? Перемкніться на "Розширено" вище.',
-    ru: 'Отметьте сервисы, которые нужно открывать через прокси. Нужен более тонкий контроль (домены, порты, имена процессов и т.д.)? Переключитесь на "Расширенно" выше.',
+    en: 'Check a popular service below, or search for any other one — results are pulled from SagerNet\'s geosite rule sets and the vernette/rulesets collection (extra AI services, plus Discord/Telegram variants that also cover voice-chat IP ranges). Picking a service with its own desktop app (Discord, Telegram, ...) also routes that app\'s executable through the proxy automatically. Need finer control (domains, ports, process names, ...)? Switch to Advanced above.',
+    ua: 'Позначте популярний сервіс нижче або знайдіть будь-який інший — результати беруться з наборів правил geosite SagerNet і колекції vernette/rulesets (додаткові AI-сервіси, а також варіанти Discord/Telegram, що покривають ще й діапазони IP голосових чатів). Вибір сервісу з власним десктопним застосунком (Discord, Telegram тощо) також автоматично спрямовує виконуваний файл цього застосунку через проксі. Потрібен тонший контроль (домени, порти, назви процесів тощо)? Перемкніться на "Розширено" вище.',
+    ru: 'Отметьте популярный сервис ниже или найдите любой другой — результаты берутся из наборов правил geosite SagerNet и коллекции vernette/rulesets (дополнительные AI-сервисы, а также варианты Discord/Telegram, покрывающие ещё и диапазоны IP голосовых чатов). Выбор сервиса с собственным десктопным приложением (Discord, Telegram и т.д.) также автоматически направляет исполняемый файл этого приложения через прокси. Нужен более тонкий контроль (домены, порты, имена процессов и т.д.)? Переключитесь на "Расширенно" выше.',
+  },
+  'simpleMode.searchPlaceholder': {
+    en: 'Search any service (e.g. netflix, claude, whatsapp)…',
+    ua: 'Знайдіть будь-який сервіс (напр. netflix, claude, whatsapp)…',
+    ru: 'Найдите любой сервис (напр. netflix, claude, whatsapp)…',
   },
   'simpleMode.extraRulesHint': {
     en: '{count} additional rule(s) from your pasted config or Advanced mode also apply, but aren’t shown here — switch to Advanced to review them.',
