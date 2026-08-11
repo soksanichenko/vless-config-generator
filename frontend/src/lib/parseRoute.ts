@@ -150,6 +150,84 @@ function parseRule(
   }
 }
 
+/** A `simple`-mode rule whose only condition is a single `rule_set` match — the shape
+ * every plain resource-picker pick produces. Two such rules with the same action are
+ * interchangeable with their union, since rule_set categories are independent domain
+ * sets and first-match-wins routing doesn't care which of the two matched. */
+function isSimpleRuleSetRule(rule: Rule): boolean {
+  return rule.mode === 'simple' && !rule.invert && rule.conditions.length === 1 && rule.conditions[0].type === 'rule_set'
+}
+
+function mergeSimpleRuleSetRules(target: Rule, source: Rule): Rule {
+  const values = Array.from(new Set([...target.conditions[0].values, ...source.conditions[0].values]))
+  return { ...target, conditions: [{ ...target.conditions[0], values }] }
+}
+
+/** A `logical`/`or` rule whose branches are each a single, non-inverted condition —
+ * the shape a resource-picker pick for a known desktop client produces (one branch
+ * matching the rule_set, one matching the client's process name). */
+function isOrShapedRule(rule: Rule): boolean {
+  return (
+    rule.mode === 'logical' &&
+    rule.logicalMode === 'or' &&
+    !rule.invert &&
+    rule.branches.length > 0 &&
+    rule.branches.every((branch) => !branch.invert && branch.conditions.length === 1)
+  )
+}
+
+/** The set of condition types across an OR-shaped rule's branches — two rules only
+ * merge cleanly if they cover the same branch types (e.g. both rule_set + process_name). */
+function orRuleShapeKey(rule: Rule): string {
+  return rule.branches
+    .map((branch) => branch.conditions[0].type)
+    .sort()
+    .join(',')
+}
+
+function mergeOrShapedRules(target: Rule, source: Rule): Rule {
+  const branchesByType = new Map(target.branches.map((branch) => [branch.conditions[0].type, branch]))
+  for (const branch of source.branches) {
+    const type = branch.conditions[0].type
+    const existing = branchesByType.get(type)
+    branchesByType.set(
+      type,
+      existing
+        ? { ...existing, conditions: [{ ...existing.conditions[0], values: Array.from(new Set([...existing.conditions[0].values, ...branch.conditions[0].values])) }] }
+        : branch,
+    )
+  }
+  return { ...target, branches: Array.from(branchesByType.values()) }
+}
+
+/**
+ * Coalesces adjacent rules that came from independently picking several resources
+ * (e.g. Telegram, Discord, YouTube all routed to proxy) back into as few rules as
+ * possible, matching how a hand-built Advanced-mode rule would combine them. Without
+ * this, every resource the Basic-mode picker ever added round-trips through
+ * paste/save/load as its own separate rule forever. Only merges rules that are
+ * already adjacent — reordering across a rule with a different action could change
+ * which one wins a given domain, so this never risks that.
+ */
+function mergeAdjacentResourceRules(rules: Rule[]): Rule[] {
+  const merged: Rule[] = []
+  for (const rule of rules) {
+    const last = merged[merged.length - 1]
+    if (last && last.action === rule.action) {
+      if (isSimpleRuleSetRule(last) && isSimpleRuleSetRule(rule)) {
+        merged[merged.length - 1] = mergeSimpleRuleSetRules(last, rule)
+        continue
+      }
+      if (isOrShapedRule(last) && isOrShapedRule(rule) && orRuleShapeKey(last) === orRuleShapeKey(rule)) {
+        merged[merged.length - 1] = mergeOrShapedRules(last, rule)
+        continue
+      }
+    }
+    merged.push(rule)
+  }
+  return merged
+}
+
 export interface ParsedRoute {
   ruleSets: RuleSetDef[]
   rules: Rule[]
@@ -195,5 +273,5 @@ export function parseExistingRoute(config: SingBoxConfig, directTag: string, pro
   const defaultAction: FinalAction | null =
     routeFinal === proxyTag ? 'proxy' : routeFinal === directTag ? 'direct' : null
 
-  return { ruleSets, rules, defaultAction, skippedRuleSets, skippedRules }
+  return { ruleSets, rules: mergeAdjacentResourceRules(rules), defaultAction, skippedRuleSets, skippedRules }
 }
