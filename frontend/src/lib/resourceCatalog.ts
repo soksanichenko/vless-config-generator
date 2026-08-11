@@ -108,16 +108,6 @@ function vernetteOption(entry: VernetteFile): ResourceOption {
   }
 }
 
-/** Curated shortcuts shown before the user types anything into the search box —
- * kept from this feature's original 5-preset Basic mode list. */
-export const FEATURED_RESOURCE_IDS = [
-  'sagernet:rutracker',
-  'sagernet:discord',
-  'sagernet:google',
-  'sagernet:tiktok',
-  'sagernet:youtube',
-]
-
 /** Combines the (possibly still-loading, backend-cached) SagerNet and runetfreedom
  * geosite category lists with the static vernette/rulesets catalog above into one
  * flat, searchable set. `runetfreedomCategories` defaults to empty so callers that
