@@ -15,6 +15,7 @@ import { LanguageSwitcher } from './components/LanguageSwitcher'
 import { UserMenu } from './components/UserMenu'
 import { buildOutputConfig } from './lib/buildConfig'
 import { DEFAULT_CONFIG_TEXT } from './lib/defaultConfig'
+import { detectRegion } from './lib/detectRegion'
 import { parseExistingRoute } from './lib/parseRoute'
 import { listOutbounds } from './types/singbox'
 import type { SingBoxConfig } from './types/singbox'
@@ -184,6 +185,24 @@ export function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsedConfig])
+
+  // Auto-detect which region profile a pasted/loaded config's `dns` section was
+  // built for (see detectRegion's own docs for the per-region dns.servers
+  // fingerprint) and switch to it — otherwise pasting e.g. a Ukraine-profile config
+  // while the UI is set to Russia would silently regenerate it under the wrong
+  // profile. Treated the same as an explicit manual pick (decouples region from the
+  // UI language default) since the pasted config carries its own region already.
+  // Skipped for the untouched starter template: its plain single-server dns section
+  // structurally matches the "default" region's own output, so detecting off of it
+  // would lock regionFollowsLang off on every fresh load, before the user did anything.
+  useEffect(() => {
+    if (!parsedConfig || configText === DEFAULT_CONFIG_TEXT) return
+    const detected = detectRegion(parsedConfig)
+    if (detected) {
+      setRegion(detected)
+      setRegionFollowsLang(false)
+    }
+  }, [parsedConfig, configText])
 
   const warnings = useMemo(() => {
     const messages: string[] = []
