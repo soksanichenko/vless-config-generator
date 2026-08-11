@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { newId } from '../lib/id'
 import { getRuleSetCategories } from '../lib/fetchRuleSetCategories'
 import { GEOSITE_CATEGORIES } from '../lib/ruleSetCategories'
-import { buildResourceCatalog, FEATURED_RESOURCE_IDS } from '../lib/resourceCatalog'
+import { buildResourceCatalog } from '../lib/resourceCatalog'
 import type { ResourceOption } from '../lib/resourceCatalog'
 import { COMPANION_APP_PROCESSES } from '../lib/companionApps'
 import type { Rule, RuleSetDef } from '../types/rules'
@@ -58,6 +58,7 @@ export function SimpleResourcePicker({ stepNumber, ruleSets, rules, onChangeRule
   const { t } = useLang()
   const [catalog, setCatalog] = useState<ResourceOption[]>(() => buildResourceCatalog(GEOSITE_CATEGORIES))
   const [search, setSearch] = useState('')
+  const [resultsOpen, setResultsOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -110,11 +111,6 @@ export function SimpleResourcePicker({ stepNumber, ruleSets, rules, onChangeRule
     else add(option)
   }
 
-  const featuredOptions = useMemo(() => {
-    const byId = new Map(catalog.map((option) => [option.id, option]))
-    return FEATURED_RESOURCE_IDS.map((id) => byId.get(id)).filter((option): option is ResourceOption => Boolean(option))
-  }, [catalog])
-
   const searchResults = useMemo(() => {
     const query = search.trim().toLowerCase()
     if (!query) return []
@@ -122,8 +118,8 @@ export function SimpleResourcePicker({ stepNumber, ruleSets, rules, onChangeRule
   }, [catalog, search])
 
   const resourceRuleIds = useMemo(() => new Set(catalog.map((option) => resourceRuleId(option.id))), [catalog])
-  const selectedNonFeatured = useMemo(
-    () => catalog.filter((option) => isSelected(option) && !FEATURED_RESOURCE_IDS.includes(option.id)),
+  const selectedOptions = useMemo(
+    () => catalog.filter((option) => isSelected(option)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [catalog, selectedIds],
   )
@@ -134,29 +130,35 @@ export function SimpleResourcePicker({ stepNumber, ruleSets, rules, onChangeRule
       <h2>{stepNumber}. {t('ruleList.heading')}</h2>
       <p className="help-text">{t('simpleMode.help')}</p>
 
-      <div className="chip-list">
-        {featuredOptions.map((option) => (
-          <label className="chip" key={option.id} style={{ cursor: 'pointer' }}>
-            <input type="checkbox" checked={isSelected(option)} onChange={() => toggle(option)} style={{ marginRight: 6 }} />
-            {option.label}
-          </label>
-        ))}
-      </div>
-
-      <div className="combobox spacer-top">
+      <div
+        className="combobox spacer-top"
+        onFocus={() => setResultsOpen(true)}
+        onBlur={(event) => {
+          // Only close once focus actually leaves the whole search widget — a click
+          // moving focus from the input to one of the result buttons below (or back)
+          // must not close the list out from under it.
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            setResultsOpen(false)
+          }
+        }}
+      >
         <input
           type="text"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder={t('simpleMode.searchPlaceholder')}
         />
-        {searchResults.length > 0 && (
+        {resultsOpen && searchResults.length > 0 && (
           <div className="combobox-results">
             {searchResults.map((option) => (
               <button
                 type="button"
                 key={option.id}
                 className={`combobox-result${isSelected(option) ? ' selected' : ''}`}
+                // Keeps focus on the input instead of moving it to the button, so the
+                // blur handler above never fires (and never has to reason about
+                // Safari not focusing buttons on click at all).
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => toggle(option)}
               >
                 <span>{option.label}</span>
@@ -168,9 +170,9 @@ export function SimpleResourcePicker({ stepNumber, ruleSets, rules, onChangeRule
         )}
       </div>
 
-      {selectedNonFeatured.length > 0 && (
+      {selectedOptions.length > 0 && (
         <div className="chip-list spacer-top">
-          {selectedNonFeatured.map((option) => (
+          {selectedOptions.map((option) => (
             <span className="chip" key={option.id}>
               {option.label}
               <button type="button" onClick={() => remove(option)} aria-label={t('ruleSets.removeAria', { tag: option.label })}>
