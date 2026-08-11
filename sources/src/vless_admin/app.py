@@ -556,14 +556,16 @@ async def api_saved_configs_delete(config_id: UUID, request: Request) -> Respons
 
 
 @app.get("/api/ruleset-categories")
-async def api_ruleset_categories(kind: str) -> JSONResponse:
+async def api_ruleset_categories(kind: str, source: str = "sagernet") -> JSONResponse:
     """Geosite/geoip category names for the rule-set autocomplete, Redis-cached."""
     if kind not in ("geosite", "geoip"):
         raise HTTPException(status_code=400, detail="kind must be 'geosite' or 'geoip'")
+    if source not in ("sagernet", "runetfreedom"):
+        raise HTTPException(status_code=400, detail="source must be 'sagernet' or 'runetfreedom'")
     try:
-        categories = await get_ruleset_categories(_http, _cache, kind)
+        categories = await get_ruleset_categories(_http, _cache, kind, source)
     except Exception as exc:
-        logger.exception("Failed to fetch %s categories", kind)
+        logger.exception("Failed to fetch %s/%s categories", source, kind)
         raise HTTPException(status_code=502, detail=str(exc))
     return JSONResponse({"categories": categories})
 

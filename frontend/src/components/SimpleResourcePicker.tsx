@@ -61,8 +61,15 @@ export function SimpleResourcePicker({ stepNumber, ruleSets, rules, onChangeRule
 
   useEffect(() => {
     let cancelled = false
-    getRuleSetCategories('geosite').then((categories) => {
-      if (!cancelled) setCatalog(buildResourceCatalog(categories))
+    let sagernetCategories = GEOSITE_CATEGORIES
+    let runetfreedomCategories: string[] = []
+    getRuleSetCategories('geosite', 'sagernet').then((categories) => {
+      sagernetCategories = categories
+      if (!cancelled) setCatalog(buildResourceCatalog(sagernetCategories, runetfreedomCategories))
+    })
+    getRuleSetCategories('geosite', 'runetfreedom').then((categories) => {
+      runetfreedomCategories = categories
+      if (!cancelled) setCatalog(buildResourceCatalog(sagernetCategories, runetfreedomCategories))
     })
     return () => {
       cancelled = true

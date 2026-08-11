@@ -1,6 +1,6 @@
 import { COMPANION_APP_PROCESSES } from './companionApps'
 
-export type ResourceSource = 'sagernet' | 'vernette'
+export type ResourceSource = 'sagernet' | 'runetfreedom' | 'vernette'
 
 /** One pickable entry in the Basic-mode routing-rules search — a single remote
  * rule_set the user can add with one click. */
@@ -24,6 +24,26 @@ function sagernetOption(category: string): ResourceOption {
     kind: 'geosite',
     tag: `geosite-${category}`,
     url: `https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-${category}.srs`,
+    appKey: COMPANION_APP_PROCESSES[category] ? category : undefined,
+  }
+}
+
+/** runetfreedom (https://github.com/runetfreedom/russia-v2ray-rules-dat) mirrors
+ * SagerNet's full geosite category set on its `release` branch, plus RU-specific
+ * additions of its own (e.g. `ru-blocked`, already used directly for the Russia
+ * region profile in regionConfig.ts) — surfaced here as an alternate, independently
+ * maintained mirror the user can pick per-category instead of/alongside SagerNet's. */
+function runetfreedomOption(category: string): ResourceOption {
+  return {
+    id: `runetfreedom:${category}`,
+    label: category,
+    source: 'runetfreedom',
+    kind: 'geosite',
+    // Distinct from the SagerNet tag (`geosite-${category}`) even for the same
+    // category name — picking both mirrors for one category must add two separate
+    // rule sets, not silently collapse onto whichever was added first.
+    tag: `runetfreedom-geosite-${category}`,
+    url: `https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-${category}.srs`,
     appKey: COMPANION_APP_PROCESSES[category] ? category : undefined,
   }
 }
@@ -98,8 +118,17 @@ export const FEATURED_RESOURCE_IDS = [
   'sagernet:youtube',
 ]
 
-/** Combines the (possibly still-loading, backend-cached) SagerNet geosite category
- * list with the static vernette/rulesets catalog above into one flat, searchable set. */
-export function buildResourceCatalog(geositeCategories: string[]): ResourceOption[] {
-  return [...geositeCategories.map(sagernetOption), ...VERNETTE_FILES.map(vernetteOption)]
+/** Combines the (possibly still-loading, backend-cached) SagerNet and runetfreedom
+ * geosite category lists with the static vernette/rulesets catalog above into one
+ * flat, searchable set. `runetfreedomCategories` defaults to empty so callers that
+ * haven't fetched it yet (or whose fetch failed) still get a usable catalog. */
+export function buildResourceCatalog(
+  sagernetCategories: string[],
+  runetfreedomCategories: string[] = [],
+): ResourceOption[] {
+  return [
+    ...sagernetCategories.map(sagernetOption),
+    ...runetfreedomCategories.map(runetfreedomOption),
+    ...VERNETTE_FILES.map(vernetteOption),
+  ]
 }
