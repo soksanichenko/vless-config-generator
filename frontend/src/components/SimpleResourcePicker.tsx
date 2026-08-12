@@ -5,7 +5,7 @@ import { GEOSITE_CATEGORIES } from '../lib/ruleSetCategories'
 import { buildResourceCatalog } from '../lib/resourceCatalog'
 import type { ResourceOption } from '../lib/resourceCatalog'
 import { COMPANION_APP_PROCESSES } from '../lib/companionApps'
-import type { Rule, RuleSetDef } from '../types/rules'
+import type { Condition, Rule, RuleSetDef } from '../types/rules'
 import { useLang } from '../i18n/LangContext'
 
 interface Props {
@@ -54,6 +54,61 @@ function buildResourceRule(option: ResourceOption, ruleSetId: string): Rule {
   }
 }
 
+function allConditionsOf(rule: Rule): Condition[] {
+  return rule.mode === 'logical' ? rule.branches.flatMap((branch) => branch.conditions) : rule.conditions
+}
+
+function ruleReferencesRuleSet(rule: Rule, ruleSetId: string): boolean {
+  return allConditionsOf(rule).some((condition) => condition.type === 'rule_set' && condition.values.includes(ruleSetId))
+}
+
+/** Strips `ruleSetId` and (if given) `processNames` out of a single condition list —
+ * used on both a `simple` rule's flat conditions and a `logical` rule's per-branch
+ * ones. Drops a condition once its values go empty; leaves everything else (other
+ * rule_set ids, other condition types entirely) untouched. */
+function pruneConditions(conditions: Condition[], ruleSetId: string, processNames: Set<string>): Condition[] {
+  return conditions
+    .map((condition) => {
+      if (condition.type === 'rule_set') {
+        return { ...condition, values: condition.values.filter((value) => value !== ruleSetId) }
+      }
+      if (condition.type === 'process_name' && processNames.size > 0) {
+        return { ...condition, values: condition.values.filter((value) => !processNames.has(value)) }
+      }
+      return condition
+    })
+    .filter((condition) => condition.type === 'ip_is_private' || condition.values.length > 0)
+}
+
+/**
+ * Removes one resource's contribution from `rules` without disturbing anything else
+ * a rule might carry — this has to work equally well on a rule the picker created
+ * itself (single value, the whole rule disappears), a rule load-time merging folded
+ * several resources into (just this one value drops out of the shared condition),
+ * and a rule hand-built in Advanced mode that happens to also reference this rule
+ * set alongside other conditions (only the rule_set membership is touched).
+ */
+function removeResourceFromRules(rules: Rule[], ruleSetId: string, processNames: string[]): Rule[] {
+  const processNameSet = new Set(processNames)
+  const result: Rule[] = []
+  for (const rule of rules) {
+    if (!ruleReferencesRuleSet(rule, ruleSetId)) {
+      result.push(rule)
+      continue
+    }
+    if (rule.mode === 'logical') {
+      const branches = rule.branches
+        .map((branch) => ({ ...branch, conditions: pruneConditions(branch.conditions, ruleSetId, processNameSet) }))
+        .filter((branch) => branch.conditions.length > 0)
+      if (branches.length > 0) result.push({ ...rule, branches })
+    } else {
+      const conditions = pruneConditions(rule.conditions, ruleSetId, processNameSet)
+      if (conditions.length > 0) result.push({ ...rule, conditions })
+    }
+  }
+  return result
+}
+
 export function SimpleResourcePicker({ stepNumber, ruleSets, rules, onChangeRuleSets, onChangeRules }: Props) {
   const { t } = useLang()
   const [catalog, setCatalog] = useState<ResourceOption[]>(() => buildResourceCatalog(GEOSITE_CATEGORIES))
@@ -77,13 +132,27 @@ export function SimpleResourcePicker({ stepNumber, ruleSets, rules, onChangeRule
     }
   }, [])
 
-  const selectedIds = useMemo(() => {
-    const ids = new Set(rules.map((rule) => rule.id))
-    return new Set(catalog.filter((option) => ids.has(resourceRuleId(option.id))).map((option) => option.id))
-  }, [catalog, rules])
+  const ruleSetIdByTag = useMemo(() => new Map(ruleSets.map((ruleSet) => [ruleSet.tag, ruleSet.id])), [ruleSets])
+
+  // Every rule_set id currently matched to a proxy action, across ALL rules — not
+  // just ones the picker itself created. This is what lets a resource picked in
+  // Advanced mode, or reconstructed by parseExistingRoute after loading a saved
+  // config, still show up as checked here: recognition is by what the rule actually
+  // does, not by which UI happened to create it.
+  const proxiedRuleSetIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const rule of rules) {
+      if (rule.action !== 'proxy') continue
+      for (const condition of allConditionsOf(rule)) {
+        if (condition.type === 'rule_set') condition.values.forEach((value) => ids.add(value))
+      }
+    }
+    return ids
+  }, [rules])
 
   function isSelected(option: ResourceOption): boolean {
-    return selectedIds.has(option.id)
+    const ruleSetId = ruleSetIdByTag.get(option.tag)
+    return ruleSetId !== undefined && proxiedRuleSetIds.has(ruleSetId)
   }
 
   function add(option: ResourceOption) {
@@ -99,11 +168,18 @@ export function SimpleResourcePicker({ stepNumber, ruleSets, rules, onChangeRule
   }
 
   function remove(option: ResourceOption) {
-    const ruleId = resourceRuleId(option.id)
-    onChangeRules(rules.filter((rule) => rule.id !== ruleId))
-    // Only drop the rule set if this picker actually owns it — a same-tagged rule
-    // set added by hand in Advanced mode (a different id) stays untouched.
-    onChangeRuleSets(ruleSets.filter((ruleSet) => ruleSet.id !== ruleId))
+    const ruleSetId = ruleSetIdByTag.get(option.tag)
+    if (!ruleSetId) return
+    const processNames = option.appKey ? (COMPANION_APP_PROCESSES[option.appKey] ?? []) : []
+    const nextRules = removeResourceFromRules(rules, ruleSetId, processNames)
+    onChangeRules(nextRules)
+    // Only drop the rule set once nothing references it anymore — a hand-added
+    // Advanced-mode rule using the same rule set (alongside other conditions, or
+    // with a different action) can still be relying on it.
+    const stillReferenced = nextRules.some((rule) => ruleReferencesRuleSet(rule, ruleSetId))
+    if (!stillReferenced) {
+      onChangeRuleSets(ruleSets.filter((ruleSet) => ruleSet.id !== ruleSetId))
+    }
   }
 
   function toggle(option: ResourceOption) {
@@ -117,13 +193,27 @@ export function SimpleResourcePicker({ stepNumber, ruleSets, rules, onChangeRule
     return catalog.filter((option) => option.label.toLowerCase().includes(query)).slice(0, MAX_SEARCH_RESULTS)
   }, [catalog, search])
 
-  const resourceRuleIds = useMemo(() => new Set(catalog.map((option) => resourceRuleId(option.id))), [catalog])
   const selectedOptions = useMemo(
     () => catalog.filter((option) => isSelected(option)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [catalog, selectedIds],
+    [catalog, proxiedRuleSetIds, ruleSetIdByTag],
   )
-  const extraRulesCount = rules.filter((rule) => !resourceRuleIds.has(rule.id)).length
+
+  // Anything proxied that doesn't resolve to a known catalog rule set at all (a
+  // hand-written domain/port/etc. rule, or a rule_set this session's catalog
+  // doesn't recognize) isn't representable above — surfaced as a count instead.
+  const catalogTags = useMemo(() => new Set(catalog.map((option) => option.tag)), [catalog])
+  const extraRulesCount = rules.filter((rule) => {
+    if (rule.action !== 'proxy') return true
+    return !allConditionsOf(rule).some(
+      (condition) =>
+        condition.type === 'rule_set' &&
+        condition.values.some((value) => {
+          const ruleSet = ruleSets.find((entry) => entry.id === value)
+          return ruleSet !== undefined && catalogTags.has(ruleSet.tag)
+        }),
+    )
+  }).length
 
   return (
     <div className="card">
