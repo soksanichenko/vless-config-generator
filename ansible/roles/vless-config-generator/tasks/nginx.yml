@@ -1,9 +1,10 @@
 ---
-- name: Deploy vless-config-generator-api nginx upstream config
-  ansible.builtin.template:
-    src: upstream.conf.j2
-    dest: "{{ nginx_custom_upstream_path }}/vless-config-generator-api.conf"
-    mode: '0644'
+# Superseded by per-request resolution in location.conf.j2; remove the
+# static upstream file left by older deploys.
+- name: Remove the old vless-config-generator-api nginx upstream config
+  ansible.builtin.file:
+    path: "{{ nginx_custom_upstream_path }}/vless-config-generator-api.conf"
+    state: absent
   become: yes
   notify: Reload nginx
   tags:

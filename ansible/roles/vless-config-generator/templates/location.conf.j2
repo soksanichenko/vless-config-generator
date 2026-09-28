@@ -1,6 +1,15 @@
+# Backends are resolved per request (resolver + set) rather than through
+# static upstream{} blocks, which nginx resolves once at startup: a
+# recreated container with a new IP would otherwise 502 until nginx
+# restarts. With a variable in proxy_pass, nginx sends a written URI as is
+# (no prefix rewrite, no query string) — so locations whose URI matches
+# the backend's pass the request URI through by omitting it, and the
+# bridge appends $is_args$args to keep its ticket.
 location = /internal/auth {
     internal;
-    proxy_pass http://{{ vless_config_generator_api_upstream_name }}/auth;
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $vless_config_generator_api_host "{{ vless_config_generator_api_container_name }}";
+    proxy_pass http://$vless_config_generator_api_host:{{ vless_config_generator_api_http_port }}/auth;
     proxy_pass_request_body off;
     proxy_set_header Content-Length "";
     proxy_set_header Cookie $http_cookie;
@@ -8,7 +17,9 @@ location = /internal/auth {
 
 location = /internal/admin-auth {
     internal;
-    proxy_pass http://{{ vless_config_generator_api_upstream_name }}/admin/auth;
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $vless_config_generator_api_host "{{ vless_config_generator_api_container_name }}";
+    proxy_pass http://$vless_config_generator_api_host:{{ vless_config_generator_api_http_port }}/admin/auth;
     proxy_pass_request_body off;
     proxy_set_header Content-Length "";
     proxy_set_header Cookie $http_cookie;
@@ -32,7 +43,9 @@ location = /login {
     auth_request /internal/zw-auth;
     auth_request_set $discord_user_id $upstream_http_x_discord_user_id;
     error_page 401 = @zw_login;
-    proxy_pass http://{{ vless_config_generator_api_upstream_name }}/login;
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $vless_config_generator_api_host "{{ vless_config_generator_api_container_name }}";
+    proxy_pass http://$vless_config_generator_api_host:{{ vless_config_generator_api_http_port }};
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $client_real_ip;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -41,7 +54,9 @@ location = /login {
 }
 
 location = /logout {
-    proxy_pass http://{{ vless_config_generator_api_upstream_name }}/logout;
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $vless_config_generator_api_host "{{ vless_config_generator_api_container_name }}";
+    proxy_pass http://$vless_config_generator_api_host:{{ vless_config_generator_api_http_port }};
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $client_real_ip;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -51,7 +66,9 @@ location = /logout {
 location /api/ {
     auth_request /internal/auth;
     error_page 401 = @site_login;
-    proxy_pass http://{{ vless_config_generator_api_upstream_name }}/api/;
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $vless_config_generator_api_host "{{ vless_config_generator_api_container_name }}";
+    proxy_pass http://$vless_config_generator_api_host:{{ vless_config_generator_api_http_port }};
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $client_real_ip;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -69,7 +86,9 @@ location = /api/whoami {
     auth_request_set $discord_access_level $upstream_http_x_discord_access_level;
     auth_request_set $self_service_enabled $upstream_http_x_service_self_service_enabled;
     error_page 401 = @zw_login;
-    proxy_pass http://{{ vless_config_generator_api_upstream_name }}/api/whoami;
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $vless_config_generator_api_host "{{ vless_config_generator_api_container_name }}";
+    proxy_pass http://$vless_config_generator_api_host:{{ vless_config_generator_api_http_port }};
     proxy_set_header Host $host;
     proxy_set_header X-Discord-User-Id $discord_user_id;
     proxy_set_header X-Discord-Avatar-Url $discord_avatar_url;
@@ -90,7 +109,9 @@ location = /api/self-service/generate {
     auth_request_set $discord_email $upstream_http_x_discord_email;
     auth_request_set $self_service_enabled $upstream_http_x_service_self_service_enabled;
     error_page 401 = @zw_login;
-    proxy_pass http://{{ vless_config_generator_api_upstream_name }}/api/self-service/generate;
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $vless_config_generator_api_host "{{ vless_config_generator_api_container_name }}";
+    proxy_pass http://$vless_config_generator_api_host:{{ vless_config_generator_api_http_port }};
     proxy_set_header Host $host;
     proxy_set_header X-Discord-User-Id $discord_user_id;
     proxy_set_header X-Discord-Email $discord_email;
@@ -98,7 +119,9 @@ location = /api/self-service/generate {
 }
 
 location /admin/login {
-    proxy_pass http://{{ vless_config_generator_api_upstream_name }}/admin/login;
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $vless_config_generator_api_host "{{ vless_config_generator_api_container_name }}";
+    proxy_pass http://$vless_config_generator_api_host:{{ vless_config_generator_api_http_port }};
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $client_real_ip;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -106,7 +129,9 @@ location /admin/login {
 }
 
 location /admin/logout {
-    proxy_pass http://{{ vless_config_generator_api_upstream_name }}/admin/logout;
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $vless_config_generator_api_host "{{ vless_config_generator_api_container_name }}";
+    proxy_pass http://$vless_config_generator_api_host:{{ vless_config_generator_api_http_port }};
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $client_real_ip;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -116,7 +141,9 @@ location /admin/logout {
 location /admin/ {
     auth_request /internal/admin-auth;
     error_page 401 = @admin_login_or_discord;
-    proxy_pass http://{{ vless_config_generator_api_upstream_name }}/admin/;
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $vless_config_generator_api_host "{{ vless_config_generator_api_container_name }}";
+    proxy_pass http://$vless_config_generator_api_host:{{ vless_config_generator_api_http_port }};
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $client_real_ip;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -140,7 +167,9 @@ location @admin_login_or_discord {
     # location's proxy_pass ("proxy_pass cannot have URI part ... inside
     # named location"). The original request URI (already /admin/...) is
     # forwarded unchanged, which is equivalent to /admin/'s own proxy_pass.
-    proxy_pass http://{{ vless_config_generator_api_upstream_name }};
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $vless_config_generator_api_host "{{ vless_config_generator_api_container_name }}";
+    proxy_pass http://$vless_config_generator_api_host:{{ vless_config_generator_api_http_port }};
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $client_real_ip;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -150,7 +179,9 @@ location @admin_login_or_discord {
 
 location = /internal/zw-admin-auth {
     internal;
-    proxy_pass http://{{ meow_elite_club_portal_upstream_name }}/auth;
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $meow_elite_club_portal_host "{{ meow_elite_club_portal_container_name }}";
+    proxy_pass http://$meow_elite_club_portal_host:{{ meow_elite_club_portal_http_port }}/auth;
     proxy_pass_request_body off;
     proxy_set_header Content-Length "";
     proxy_set_header Cookie $http_cookie;
@@ -178,7 +209,9 @@ location / {
 
 location = /internal/zw-auth {
     internal;
-    proxy_pass http://{{ meow_elite_club_portal_upstream_name }}/auth;
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $meow_elite_club_portal_host "{{ meow_elite_club_portal_container_name }}";
+    proxy_pass http://$meow_elite_club_portal_host:{{ meow_elite_club_portal_http_port }}/auth;
     proxy_pass_request_body off;
     proxy_set_header Content-Length "";
     proxy_set_header Cookie $http_cookie;
@@ -186,7 +219,9 @@ location = /internal/zw-auth {
 }
 
 location = /internal/bridge {
-    proxy_pass http://{{ meow_elite_club_portal_upstream_name }}/bridge/consume;
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $meow_elite_club_portal_host "{{ meow_elite_club_portal_container_name }}";
+    proxy_pass http://$meow_elite_club_portal_host:{{ meow_elite_club_portal_http_port }}/bridge/consume$is_args$args;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $client_real_ip;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

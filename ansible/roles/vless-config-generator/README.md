@@ -33,8 +33,11 @@ Browser-based sing-box routing-rule editor for VLESS clients on zelgray.work
    username/password) from Infisical secrets
 5. Deploys the nginx location config to
    `{{ nginx_domain_custom_locations_path }}/vless-config-generator.conf`
-   and the upstream config to
-   `{{ nginx_custom_upstream_path }}/vless-config-generator-api.conf` —
+   (backends resolved per request via `resolver` + `set`, not a static
+   `upstream{}`, so a recreated container's new IP is picked up without an
+   nginx restart; a leftover
+   `{{ nginx_custom_upstream_path }}/vless-config-generator-api.conf` from
+   older deploys is removed) —
    `/api/` and `/admin/` each go through `auth_request` against their own
    backend endpoint (`/auth` or `/admin/auth`), redirecting to `/login` or
    `/admin/login` on a 401; `/` (the static SPA) goes through the Discord
@@ -183,7 +186,6 @@ hand-typed into `/admin/services`.
 | `vless_config_generator_api_image` | `vless-config-generator-api:local` | API image tag |
 | `vless_config_generator_api_http_port` | `8999` | Port the API listens on inside its container |
 | `vless_config_generator_api_data_dir` | `{{ docker_volumes_directory }}/vless-config-generator-api` | Rsync target + build context on the target host |
-| `vless_config_generator_api_upstream_name` | `vless_config_generator_api_upstream` | Nginx upstream name |
 | `vless_config_generator_api_database_url` | built from shared `postgresql_container_name`/`postgres_password` | Postgres URL for the `clients` table |
 | `vless_config_generator_api_redis_url` | built from shared `redis_container_name` | Redis URL for the rule-set category cache |
 | `vless_config_generator_api_cache_ttl` | `86400` | Rule-set category cache TTL (seconds) |
@@ -199,8 +201,9 @@ hand-typed into `/admin/services`.
 | `nginx_confd_path` | `{{ nginx_volumes_path }}/conf.d` | conf.d path on the host |
 | `nginx_html_path` | `{{ nginx_volumes_path }}/html` | Nginx's html volume root on the host |
 | `nginx_domain_custom_locations_path` | `{{ nginx_confd_path }}/{{ vless_config_generator_domain }}-custom-locations` | Per-domain location snippets dir (created by infra's nginx role once `host_domains` includes this subdomain) |
-| `nginx_custom_upstream_path` | `{{ nginx_confd_path }}/custom-upstream` | Shared custom-upstream dir (infra's nginx role) |
-| `meow_elite_club_portal_upstream_name` | `meow_elite_club_portal_upstream` | Nginx upstream name for the Discord SSO gate's `/auth` and `/bridge/consume` endpoints |
+| `nginx_custom_upstream_path` | `{{ nginx_confd_path }}/custom-upstream` | Shared custom-upstream dir (infra's nginx role); only used to remove this role's old upstream file |
+| `meow_elite_club_portal_container_name` | `meow-elite-club-portal` | Discord SSO gate container, resolved per request for its `/auth` and `/bridge/consume` endpoints |
+| `meow_elite_club_portal_http_port` | `8867` | Port the gate listens on |
 | `vless_config_generator_service_slug` | `vless-gen` | `X-Service-Slug` sent to `/auth`; also the `slug` this role self-registers as its `GatedService` row |
 | `meow_elite_club_portal_service_registration_token` | *(from Infisical `/hosts/shared` `meow-elite-club-portal-service-registration-token`)* | Bearer token for `POST /api/services/register` |
 
