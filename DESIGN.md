@@ -695,7 +695,7 @@ implemented from for the full ground-truth investigation):
   (existing shared Infisical identity, not a narrowly-scoped one — a
   per-secret-scoped Infisical identity turned out not to be possible).
   This repo's backend holds a GitHub PAT (`actions:write` scoped to
-  `soksanichenko/infra` only, stored in Infisical at `/hosts/zelgray-work`)
+  `soksanichenko/infra` only, stored in Infisical at `/hosts/zelgray-work/vless-config-generator`)
   to call the dispatch API.
 - xray's only reload path (`ansible/roles/xray/handlers/main.yml` in
   `infra`) is a **hard container restart** (`docker_container: restart:
