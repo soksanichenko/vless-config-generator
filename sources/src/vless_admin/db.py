@@ -2,12 +2,14 @@
 
 import logging
 from datetime import UTC, datetime
+from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID, uuid4
 
+import psycopg
+from psycopg import sql
 from sqlalchemy import delete, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy_utils import create_database, database_exists
 
 from .models_db import Client, DiscordLink, SavedConfig, Session
 
@@ -22,10 +24,17 @@ def create_db_if_not_exists(sync_url: str) -> None:
     Table creation and migrations are handled exclusively by Alembic.
     """
     logger.info("Checking database existence")
-    if not database_exists(sync_url):
-        logger.info("Database not found, creating")
-        create_database(sync_url)
-        logger.info("Database created")
+    parts = urlsplit(sync_url)
+    database = parts.path.lstrip("/")
+    maintenance_url = urlunsplit(("postgresql", parts.netloc, "/postgres", "", ""))
+    with psycopg.connect(maintenance_url, autocommit=True) as conn:
+        exists = conn.execute(
+            "SELECT 1 FROM pg_database WHERE datname = %s", (database,)
+        ).fetchone()
+        if not exists:
+            logger.info("Database not found, creating")
+            conn.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(database)))
+            logger.info("Database created")
 
 
 def init_db(async_url: str) -> None:

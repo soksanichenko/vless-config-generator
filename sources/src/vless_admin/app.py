@@ -561,7 +561,9 @@ async def api_ruleset_categories(kind: str, source: str = "sagernet") -> JSONRes
     if kind not in ("geosite", "geoip"):
         raise HTTPException(status_code=400, detail="kind must be 'geosite' or 'geoip'")
     if source not in ("sagernet", "runetfreedom"):
-        raise HTTPException(status_code=400, detail="source must be 'sagernet' or 'runetfreedom'")
+        raise HTTPException(
+            status_code=400, detail="source must be 'sagernet' or 'runetfreedom'"
+        )
     try:
         categories = await get_ruleset_categories(_http, _cache, kind, source)
     except Exception as exc:

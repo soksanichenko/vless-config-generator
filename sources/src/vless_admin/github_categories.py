@@ -34,7 +34,9 @@ _SOURCES: dict[str, dict[str, _SourceSpec]] = {
     },
     "runetfreedom": {
         "geosite": _SourceSpec(
-            "runetfreedom/russia-v2ray-rules-dat", "release", "sing-box/rule-set-geosite/"
+            "runetfreedom/russia-v2ray-rules-dat",
+            "release",
+            "sing-box/rule-set-geosite/",
         ),
         "geoip": _SourceSpec(
             "runetfreedom/russia-v2ray-rules-dat", "release", "sing-box/rule-set-geoip/"
@@ -43,7 +45,9 @@ _SOURCES: dict[str, dict[str, _SourceSpec]] = {
 }
 
 
-async def _fetch_from_github(http: httpx.AsyncClient, spec: _SourceSpec, kind: str) -> list[str]:
+async def _fetch_from_github(
+    http: httpx.AsyncClient, spec: _SourceSpec, kind: str
+) -> list[str]:
     headers = {"Accept": "application/vnd.github+json"}
 
     branch_response = await http.get(
@@ -65,7 +69,9 @@ async def _fetch_from_github(http: httpx.AsyncClient, spec: _SourceSpec, kind: s
         {match.group(1) for entry in tree if (match := pattern.match(entry["path"]))}
     )
     if not categories:
-        raise ValueError(f"GitHub tree returned no matching rule sets for {spec.repo}/{kind}")
+        raise ValueError(
+            f"GitHub tree returned no matching rule sets for {spec.repo}/{kind}"
+        )
     return categories
 
 
