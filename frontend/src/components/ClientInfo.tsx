@@ -24,11 +24,14 @@ export function ClientInfo({
 }: Props) {
   const { t } = useLang()
   const client = clients.find((candidate) => candidate.uuid === selectedUuid) ?? null
+  // While generating/provisioning, canGenerateCredentials is already false
+  // again, but the login hint would just be noise next to the progress text.
+  const generating = generateStatus === 'generating' || generateStatus === 'provisioning'
 
   return (
     <div className="card">
       <h2>{t('client.heading')}</h2>
-      {loadError && (
+      {loadError && !canGenerateCredentials && !generating && (
         <p className="help-text">
           {t('client.loginHint')}{' '}
           <a className="button" href="/login">
