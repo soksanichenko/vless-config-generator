@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 # ("pending", "pending_removal", "removing") blocks login, "pending"
 # because the client was never actually provisioned on xray yet.
 _LOGIN_ALLOWED_STATUSES = {"dispatched", "pending_update", "updating"}
+_REMOVAL_STATUSES = {"pending_removal", "removing"}
 
 
 async def verify_client_login(email: str, client_uuid: str) -> Client | None:
@@ -75,6 +76,25 @@ async def get_clients_for_discord(discord_user_id: str | None) -> list[Client]:
         for candidate in await client_list_by_email(email)
         if candidate.status in _LOGIN_ALLOWED_STATUSES
     ]
+
+
+async def discord_has_credentials(discord_user_id: str) -> bool:
+    """True if the Discord user's linked account still holds a credential that
+    isn't on its way out — only then is self-service generation blocked.
+
+    A `DiscordLink` row alone isn't enough: `client_delete` hard-deletes the
+    client but leaves the link behind, and a link to nothing would otherwise
+    lock the user out of both login and self-service generation for good. An
+    in-flight add ("pending") still counts, so a reload mid-provisioning
+    can't create a duplicate.
+    """
+    email = await discord_link_get_email(discord_user_id)
+    if email is None:
+        return False
+    return any(
+        candidate.status not in _REMOVAL_STATUSES
+        for candidate in await client_list_by_email(email)
+    )
 
 
 def verify_admin_login(username: str, password: str, config: AppConfig) -> bool:

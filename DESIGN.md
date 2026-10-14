@@ -1125,3 +1125,20 @@ together — both cookie-session based, both enforced via nginx
   (`frontend/src/lib/detectSingboxTarget.ts`) — see "Sing-box version
   target (Stable / Alpha)" above ("Auto-detected on paste/Load") for the
   full rationale.
+- Self-service generation and dangling `DiscordLink` rows
+  (`auth.py`'s `discord_has_credentials`, used by `/api/whoami` and
+  `POST /api/self-service/generate`) — `client_delete` hard-deletes a
+  client but leaves its `discord_links` row, and both endpoints used to
+  treat "a link exists" as "already has credentials". A Discord user whose
+  client was deleted was therefore stuck: no generate button
+  (`canGenerateCredentials` false), `409` on the endpoint, and `/login`
+  (`get_clients_for_discord`) finding no valid client and showing the
+  email+uuid form — while the header's Discord menu still showed "Log out",
+  since that comes from the portal's SSO, not this site's `site_session`.
+  Fix: "has credentials" now means the linked email still has a client
+  outside `pending_removal`/`removing` (`pending` still counts, so a reload
+  mid-provisioning can't create a duplicate); the stale link is simply
+  overwritten by `discord_link_upsert` on the next generate. The link row
+  itself is not deleted on client removal. Not verified against production
+  at the time of writing — the other cause with the same symptom is the
+  portal's self-service toggle being off for the grant.

@@ -15,6 +15,7 @@ from fastapi.templating import Jinja2Templates
 from markupsafe import escape
 
 from .auth import (
+    discord_has_credentials,
     get_admin_from_session,
     get_clients_for_discord,
     get_clients_from_session,
@@ -37,7 +38,6 @@ from .db import (
     client_set_run_id,
     client_update,
     client_update_run_status,
-    discord_link_get_email,
     discord_link_list,
     discord_link_upsert,
     init_db,
@@ -405,9 +405,8 @@ async def api_whoami(request: Request) -> JSONResponse:
     self_service_enabled = (
         request.headers.get("X-Service-Self-Service-Enabled") == "true"
     )
-    already_linked = (
-        discord_user_id is not None
-        and await discord_link_get_email(discord_user_id) is not None
+    already_linked = discord_user_id is not None and await discord_has_credentials(
+        discord_user_id
     )
     return JSONResponse(
         {
@@ -452,7 +451,7 @@ async def api_self_service_generate(request: Request) -> Response:
     discord_user_id = request.headers.get("X-Discord-User-Id")
     if not discord_user_id:
         return JSONResponse({"error": "not authenticated"}, status_code=401)
-    if await discord_link_get_email(discord_user_id) is not None:
+    if await discord_has_credentials(discord_user_id):
         return JSONResponse({"error": "already have credentials"}, status_code=409)
 
     email = (
