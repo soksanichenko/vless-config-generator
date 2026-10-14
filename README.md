@@ -71,9 +71,12 @@ below.
   granted), falling back to a synthetic label
   (`discord-<id>@self-service.local`) otherwise — see `models_db.Client`'s
   own docstring on why a non-real address there is fine either way. A
-  Discord identity can only ever hold one self-service-generated
-  credential (`409` on a repeat attempt) — matches "generate my own,
-  once" rather than the admin panel's unlimited add. The new client
+  Discord identity can only hold one self-service-generated credential
+  at a time (`409` on a repeat attempt while its linked account still has
+  a credential that isn't being removed) — matches "generate my own"
+  rather than the admin panel's unlimited add. A link whose client has
+  since been deleted doesn't count, so such a user can generate again.
+  The new client
   starts "pending" like any admin-added one, so the SPA polls
   `/api/clients` every 5s (same cadence as the admin dashboard's own
   status poll) until the
