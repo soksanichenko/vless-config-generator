@@ -860,8 +860,10 @@ generator UI itself isn't — it's a static rule builder that works from any
 config pasted into it. Two independent gates now, deliberately not chained
 together — both cookie-session based, both enforced via nginx
 `auth_request`:
-- `/api/`: log in at `/login` with an existing client's `email:uuid`, gets a
-  `site_session` cookie checked against `/auth`. `/` (the static SPA) is
+- `/api/`: a `site_session` cookie checked against `/auth`, issued either by
+  `/login` (an existing client's `email:uuid`) or, for a Discord identity
+  linked to a client, by `GET /api/whoami` (the SPA has no "Log in" button
+  any more). `/` (the static SPA) is
   **not** gated by this site-specific login — superseded the original
   design where `/` and `/api/` shared the same `auth_request`, so using the
   generator required a client login even for someone pasting their own
@@ -870,7 +872,7 @@ together — both cookie-session based, both enforced via nginx
   top of, not replacing, this reasoning: it still doesn't require the
   site's own client login.) Logged-out visitors just don't get
   `/api/clients` autofill — the
-  Client card shows a note explaining that and a "Log in" button
+  Client card shows a "no credentials linked" note
   (`ClientInfo.tsx`) instead of a raw fetch-error banner, since "not logged
   in" is now an expected, common state rather than a failure — or the live
   rule-set category list (falls back to the bundled snapshot).

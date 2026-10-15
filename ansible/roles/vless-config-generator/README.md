@@ -18,7 +18,9 @@ Browser-based sing-box routing-rule editor for VLESS clients on zelgray.work
      Redis-cached) to the frontend, plus `/api/saved-configs` (list/save/
      download/delete, capped at 5 per account, also scoped to the
      logged-in account) for the "Saved configs" card
-   - serves `/login` + `/logout` (site login form, email + VLESS UUID) and
+   - serves `/login` + `/logout` (site login form, email + VLESS UUID; the
+     SPA no longer links to it — a Discord identity linked to a client gets
+     its `site_session` from `GET /api/whoami`) and
      `/auth`, the nginx `auth_request` target that gates `/api/` (client
      autofill, live rule-set category list) against the resulting session
      cookie
