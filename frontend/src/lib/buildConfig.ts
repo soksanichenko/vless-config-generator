@@ -250,8 +250,11 @@ export function buildOutputConfig(input: BuildConfigInput): SingBoxConfig {
   route.default_http_client =
     input.defaultAction === 'direct' ? HTTP_CLIENT_DIRECT : HTTP_CLIENT_PROXY
 
+  // No `detour` on the direct client: sing-box rejects a detour to a direct outbound
+  // without options ("detour to an empty direct outbound makes no sense"), and a client
+  // with no detour dials directly anyway.
   const ownHttpClients = [
-    { tag: HTTP_CLIENT_DIRECT, detour: input.directTag },
+    { tag: HTTP_CLIENT_DIRECT },
     { tag: HTTP_CLIENT_PROXY, detour: input.proxyTag },
   ]
   const existingHttpClients = Array.isArray(config.http_clients) ? config.http_clients : []
