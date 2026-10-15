@@ -87,16 +87,16 @@ export function App() {
   }
 
   useEffect(() => {
-    loadClients().catch((error: unknown) =>
-      setClientError(error instanceof Error ? error.message : String(error)),
-    )
-  }, [])
-
-  useEffect(() => {
+    // whoami goes first: for a Discord user linked to a client it also issues the site
+    // session /api/clients needs (there is no separate login step in the UI).
     fetch('/api/whoami')
       .then((response) => (response.ok ? (response.json() as Promise<Whoami>) : null))
       .then((data) => setCanGenerateCredentials(data?.canGenerateCredentials ?? false))
       .catch(() => setCanGenerateCredentials(false))
+      .then(() => loadClients())
+      .catch((error: unknown) =>
+        setClientError(error instanceof Error ? error.message : String(error)),
+      )
   }, [])
 
   async function handleGenerateCredentials() {

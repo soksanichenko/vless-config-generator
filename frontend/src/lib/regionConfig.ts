@@ -25,6 +25,12 @@ export interface RegionConfigResult {
  * redundantly alongside A/AAAA, adding latency for no benefit in this setup. */
 const BLOCK_HTTPS_SVCB_RULE = { query_type: [32, 33], action: 'predefined', rcode: 'NOERROR' }
 
+/** Tags of the top-level `http_clients` entries buildConfig.ts defines (detouring via the
+ * direct / proxy outbound). Remote rule sets reference them via `http_client`, which
+ * replaces `download_detour` (removed in sing-box 1.16.0). */
+export const HTTP_CLIENT_DIRECT = 'http-direct'
+export const HTTP_CLIENT_PROXY = 'http-proxy'
+
 export function buildRegionConfig(
   region: Region,
   directTag: string,
@@ -72,14 +78,14 @@ export function buildRegionConfig(
           tag: 'geoip-ua',
           format: 'binary',
           url: 'https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-ua.srs',
-          download_detour: directTag,
+          http_client: HTTP_CLIENT_DIRECT,
         },
         {
           type: 'remote',
           tag: 'geoip-ru',
           format: 'binary',
           url: 'https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-ru.srs',
-          download_detour: proxyTag,
+          http_client: HTTP_CLIENT_PROXY,
         },
         // CDN edge ranges — final is "proxy" for this region, so without these, CDN
         // traffic (unblocked, not needing the tunnel) would take an unnecessary detour
@@ -96,7 +102,7 @@ export function buildRegionConfig(
           tag,
           format: 'binary',
           url: `https://raw.githubusercontent.com/Loyalsoldier/geoip/release/srs/${name}.srs`,
-          download_detour: directTag,
+          http_client: HTTP_CLIENT_DIRECT,
         })),
       ],
       // geoip-ru must be checked before the CDN rule_set: some resources reachable only
@@ -149,14 +155,14 @@ export function buildRegionConfig(
           tag: 'geosite-ru-blocked',
           format: 'binary',
           url: 'https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geosite/geosite-ru-blocked.srs',
-          download_detour: proxyTag,
+          http_client: HTTP_CLIENT_PROXY,
         },
         {
           type: 'remote',
           tag: 'geoip-ru-blocked',
           format: 'binary',
           url: 'https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-geoip/geoip-ru-blocked.srs',
-          download_detour: proxyTag,
+          http_client: HTTP_CLIENT_PROXY,
         },
       ],
       // No CDN rule_set here: final for this region is already "direct", so unblocked

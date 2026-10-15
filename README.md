@@ -47,10 +47,12 @@ below.
   auth path got you into `/admin/` (see below), never both at once. Both
   the SPA and this page also link back to the Discord portal
   (`https://meow-elite.club/`) next to their language switcher
-- **Site login via client credentials** — optional: log in at `/login` with
-  an existing client's email + VLESS UUID to get a signed session cookie
-  (`/logout` to end it), which auto-fills your own credentials into the
-  generator (see "Client credentials" above). The generator page itself is
+- **Site login via Discord SSO** — the SPA has no "Log in" button: a
+  Discord identity linked to a client is signed into a `site_session`
+  automatically by `GET /api/whoami`, which auto-fills your own credentials
+  into the generator (see "Client credentials" above; `/logout` ends the
+  session). `/login`'s email + VLESS UUID form remains server-side only, as
+  the way to link a pre-existing client. The generator page itself is
   public and works without logging in; only `/api/` (client autofill,
   live rule-set category list) is gated by nginx `auth_request` against the
   backend
@@ -158,10 +160,9 @@ below.
   response), which work on any current sing-box release. `Alpha` uses
   two-step `evaluate`/`match_response` rules, which need sing-box 1.14.0 —
   not released as stable yet, only as alpha builds. Rule sets always
-  download via the classic per-entry `download_detour` regardless of this
-  setting — its documented replacement (`route.http_clients`) turned out
-  not to exist yet on a real alpha build that already required the
-  `evaluate`/`match_response` syntax, so this generator doesn't emit it.
+  download via top-level `http_clients` + per-entry `http_client` (sing-box
+  1.14.0+) regardless of this setting, since `download_detour` is removed
+  in sing-box 1.16.0.
   Has no effect for the Default region. Auto-detected on paste/Load: if the
   pasted or loaded config's `dns.rules` already show one target's syntax
   (`evaluate` for Alpha, the legacy single-step address filter for
@@ -192,8 +193,8 @@ below.
   there — since it's this tool's own prior output, the routing rules baked
   into it get parsed back into the rule builder the same way any pasted
   config would, see "Import existing rules from a pasted config" above),
-  and **Delete**. Visitors who aren't logged in see a "Log in to save"
-  hint instead
+  and **Delete**. Accounts without credentials see a short
+  "available once your account has VLESS credentials" hint instead
 - **Localization** — EN/UA/RU switcher (top-right, persisted in
   `localStorage`); every heading, help text, label, button, and warning is
   translated. Unlike zelgray.work's static error pages (`infra`'s
@@ -229,8 +230,8 @@ npm run dev
 ```
 
 Without the backend running locally, `/api/clients` and
-`/api/ruleset-categories` 404 — the client info card shows a "Log in" note
-(instead of autofilled credentials) and the rule-set category input falls
+`/api/ruleset-categories` 404 — the client info card shows a "no credentials linked"
+note (instead of autofilled credentials) and the rule-set category input falls
 back to its bundled snapshot list; the rest of the UI still works.
 
 ## Backend development

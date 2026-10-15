@@ -234,7 +234,7 @@ pre-existing `dns`-level keys in the pasted config pass through untouched.
   the VLESS tunnel even though nothing about them is blocked in Ukraine —
   their anycast edges already sit a few ms away. `buildRegionConfig` adds four
   `Loyalsoldier/geoip` ASN-based rule sets (`cdn-cloudflare`/`cdn-google`/
-  `cdn-fastly`/`cdn-cloudfront`, downloaded direct via `download_detour`
+  `cdn-fastly`/`cdn-cloudfront`, downloaded direct via `http_client`
   regardless of Stable/Alpha — see "Rule-set downloads" below) plus a structural
   `route.rules` block ahead of the user's own rules: `ip_is_private` →
   direct, `geoip-ru` → proxy, the four CDN rule sets → direct, `geoip-ua` →
@@ -308,29 +308,29 @@ what actually runs on a released sing-box today. Has no effect on the
   undocumented before 1.14.0, and the address-filter mechanism ("items in
   `ip_cidr` within included rule-sets also function as address filtering
   fields") is confirmed as the pre-1.14 idiom for this exact pattern.
-- **Rule-set downloads: `download_detour` kept unconditionally, not migrated
-  to `http_client`.** `download_detour` (a field on each `route.rule_set`
-  entry) is *documented* as deprecated since sing-box 1.14.0 and removed in
-  1.16.0, replaced by `route.http_clients`/`default_http_client` plus a
-  per-entry `http_client` field — Stable/Alpha originally switched on this
-  the same way it does for the DNS syntax above, on the assumption that a
-  build new enough to require `evaluate`/`match_response` would also have
-  `http_clients` implemented.
-  **Bug fixed:** that assumption was wrong. A real alpha build that already
-  hard-required the new DNS syntax (and already rejected the legacy
-  `dns.servers[].strategy` field, see "Region selection" above) still
-  failed outright on `route.http_clients` — `FATAL ... route.http_clients:
-  json: unknown field "http_clients"` — meaning the two migrations aren't
-  on the same implementation timeline in practice, whatever the docs'
-  version numbers suggest. `regionConfig.ts`'s rule_set entries now always
-  emit `download_detour` regardless of `singboxTarget` (the `alpha`-only
-  `ruleSetDownloadFields` helper and its `http-direct`/`http-proxy` tags
-  were removed entirely); `buildConfig.ts` unconditionally `delete`s
-  `route.http_clients`/`default_http_client` from the output rather than
-  ever setting them — not just because it no longer generates them, but so
-  that Loading an already-saved config from before this revert (see "Saved
-  configs" below) doesn't carry the stale fields through into a config
-  that would fail to decode.
+- **Rule-set downloads: `http_client`, not `download_detour`.**
+  `download_detour` (a field on each `route.rule_set` entry) and the implicit
+  default HTTP client (rule sets with neither field, which download through
+  the default outbound) are deprecated since sing-box 1.14.0 and **removed in
+  1.16.0**. The replacement is a top-level `http_clients` list, a per-entry
+  `http_client` tag on each remote rule set, and `route.default_http_client`.
+  `buildConfig.ts` emits two clients, `http-direct` and `http-proxy`
+  (`{tag, detour}` on the direct / proxy outbound); region rule sets pick one
+  via `http_client` (`regionConfig.ts`), and `route.default_http_client` is
+  the one matching `route.final`, so the user's own rule sets (which carry no
+  field) download through the same outbound the implicit default used to.
+  Clients already present in a pasted config are kept unless their tag
+  collides with ours. Requires sing-box >= 1.14.0.
+  **History / earlier misdiagnosis:** a previous revision tried this
+  migration, hit `FATAL ... route.http_clients: json: unknown field
+  "http_clients"` on a real alpha build, and concluded the two migrations
+  (DNS `evaluate`/`match_response` vs `http_clients`) were on different
+  implementation timelines, reverting to `download_detour`. That was wrong:
+  `http_clients` is a **top-level** key (sibling of `route`/`dns`), not
+  `route.http_clients` — only `default_http_client` lives under `route`. The
+  field was simply in the wrong place. `buildConfig.ts` still deletes
+  `route.http_clients` from the output so configs saved by that older
+  revision don't carry the invalid key through.
 - **Auto-detected on paste/Load** (`frontend/src/lib/detectSingboxTarget.ts`,
   wired into `App.tsx` as its own `useEffect` keyed on `parsedConfig`,
   alongside the existing direct/proxy-tag and rule-import detection).
@@ -933,10 +933,15 @@ together — both cookie-session based, both enforced via nginx
 
 ## End-to-end UI flow (summary)
 
-1. Optionally log in at `/login` with your client's `email:uuid` — your own
-   server params + credentials come along automatically, no manual entry.
-   Skip this and paste your own config with credentials filled in by hand
-   instead; the rest of the tool works the same either way.
+1. Sign in via Discord SSO (portal) — no "Log in" button in the UI. If your
+   Discord identity is linked to a client, `GET /api/whoami` also issues the
+   `site_session` (the SPA calls it before `/api/clients`), so your own
+   server params + credentials come along automatically. With no linked
+   client, paste your own config with credentials filled in by hand instead
+   (or generate credentials, if self-service is on); the rest of the tool
+   works the same either way. `/login`'s email+uuid form still exists
+   server-side as the way to link a pre-existing client, but nothing in the
+   SPA links to it.
 2. Paste an existing sing-box `config.json` as the base.
 3. Build/edit routing rules in the rule list (conditions + direct/proxy
    action, drag to reorder).
@@ -1100,10 +1105,9 @@ together — both cookie-session based, both enforced via nginx
 - Sing-box version target (`frontend/src/types/singboxTarget.ts`,
   `frontend/src/components/SingboxTargetSelector.tsx`) picks between two
   DNS rule syntaxes for the Ukraine/Russia region profiles only —
-  rule_set downloads always use `download_detour` regardless of this
+  rule_set downloads always use `http_client` regardless of this
   setting (see "Rule-set downloads" under "Sing-box version target
-  (Stable / Alpha)" above for why the `http_client` migration was
-  reverted).
+  (Stable / Alpha)" above).
 - The Output panel links to
   [sing-box-tray-runner](https://github.com/soksanichenko/sing-box-tray-runner)
   as the recommended way to actually run the generated config

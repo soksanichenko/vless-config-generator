@@ -3,7 +3,7 @@ import type { Action, Condition, ConditionType, FinalAction, Rule, RuleSetDef } 
 import type { VlessClient } from '../types/clients'
 import type { Region } from '../types/region'
 import type { MultiplexSettings } from '../types/multiplex'
-import { buildRegionConfig } from './regionConfig'
+import { buildRegionConfig, HTTP_CLIENT_DIRECT, HTTP_CLIENT_PROXY } from './regionConfig'
 
 export interface BuildConfigInput {
   config: SingBoxConfig
@@ -240,15 +240,28 @@ export function buildOutputConfig(input: BuildConfigInput): SingBoxConfig {
     delete route.rule_set
   }
 
-  // `route.http_clients`/`http_client` (the documented replacement for the deprecated
-  // `download_detour`) turned out to not exist yet on a real sing-box alpha build that
-  // already required the newer DNS evaluate/match_response syntax ("unknown field
-  // http_clients") — the two migrations aren't actually on the same timeline, so this
-  // sticks with `download_detour` unconditionally (see regionConfig.ts) and only clears
-  // http_clients/default_http_client here in case a previously-saved/pasted config
-  // (e.g. via "Load" on a saved config from before this revert) still has them.
+  // Remote rule sets download through a shared HTTP client (sing-box 1.14+) instead of the
+  // legacy `download_detour`/implicit default outbound, both removed in 1.16.0. Note that
+  // `http_clients` is a top-level key, not `route.http_clients` — sing-box rejects the
+  // latter with "unknown field". Rule sets without their own `http_client` (the user's
+  // own) fall back to `default_http_client`, matched to `route.final` so they download
+  // through the same outbound the implicit default used to pick.
   delete route.http_clients
-  delete route.default_http_client
+  route.default_http_client =
+    input.defaultAction === 'direct' ? HTTP_CLIENT_DIRECT : HTTP_CLIENT_PROXY
+
+  const ownHttpClients = [
+    { tag: HTTP_CLIENT_DIRECT, detour: input.directTag },
+    { tag: HTTP_CLIENT_PROXY, detour: input.proxyTag },
+  ]
+  const existingHttpClients = Array.isArray(config.http_clients) ? config.http_clients : []
+  config.http_clients = [
+    ...existingHttpClients.filter(
+      (client) =>
+        !ownHttpClients.some((own) => (client as Record<string, unknown> | null)?.tag === own.tag),
+    ),
+    ...ownHttpClients,
+  ]
 
   config.route = route
 
