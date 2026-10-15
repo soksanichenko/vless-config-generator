@@ -87,7 +87,7 @@ npm run dev
 ```
 
 Without the backend running locally, `/api/clients` and
-`/api/ruleset-categories` 404 — the client info card shows a "Log in" note
+`/api/ruleset-categories` 404 — the client info card shows a "no credentials linked" note
 (instead of autofilled credentials) and the rule-set category input falls
 back to a bundled snapshot list; the rest of the UI still works. In
 production, `/api/` (not `/`) is what actually requires a logged-in

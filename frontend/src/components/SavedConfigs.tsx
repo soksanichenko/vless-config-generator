@@ -97,12 +97,7 @@ export function SavedConfigs({ stepNumber, config, loggedIn, onLoad }: Props) {
     <div className="card">
       <h2>{stepNumber}. {t('savedConfigs.heading')}</h2>
       {!loggedIn && (
-        <p className="help-text">
-          {t('savedConfigs.loginHint')}{' '}
-          <a className="button" href="/login">
-            {t('client.login')}
-          </a>
-        </p>
+        <p className="help-text">{t('savedConfigs.unavailableHint')}</p>
       )}
       {loggedIn && (
         <>

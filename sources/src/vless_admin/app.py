@@ -397,6 +397,11 @@ async def api_whoami(request: Request) -> JSONResponse:
     identity has no linked client yet — true only when "generate my
     credentials" (see `POST /api/self-service/generate`) would actually
     succeed right now.
+
+    Also the SPA's silent Discord sign-in: a visitor whose Discord identity is
+    linked to a valid client but who holds no valid `site_session` (first
+    visit, expired or cleared cookie) gets one here, so `/api/clients` works
+    right after — the SPA has no "Log in" button, the Discord SSO is the login.
     """
     admin_username = await get_admin_from_session(
         request.cookies.get(ADMIN_COOKIE_NAME)
@@ -408,7 +413,7 @@ async def api_whoami(request: Request) -> JSONResponse:
     already_linked = discord_user_id is not None and await discord_has_credentials(
         discord_user_id
     )
-    return JSONResponse(
+    response = JSONResponse(
         {
             "discordUserId": discord_user_id,
             "avatarUrl": request.headers.get("X-Discord-Avatar-Url"),
@@ -419,6 +424,16 @@ async def api_whoami(request: Request) -> JSONResponse:
             and not already_linked,
         }
     )
+    if not await get_clients_from_session(request.cookies.get(SITE_COOKIE_NAME)):
+        linked = await get_clients_for_discord(discord_user_id)
+        if linked:
+            await create_session(
+                response,
+                kind="site",
+                subject=linked[0].email,
+                cookie_secure=config.cookie_secure,
+            )
+    return response
 
 
 @app.post("/api/self-service/generate")

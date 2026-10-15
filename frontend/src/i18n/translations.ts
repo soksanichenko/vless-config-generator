@@ -26,12 +26,11 @@ const DICT = {
     ru: ' — эти данные будут подставлены в proxy-outbound.',
   },
   'client.logout': { en: 'Log out', ua: 'Вийти', ru: 'Выйти' },
-  'client.loginHint': {
-    en: "Want your own server address and credentials filled in automatically? Log in with your VLESS client's email:uuid. Not required — you can also just paste a config with credentials typed in by hand below.",
-    ua: 'Хочете, щоб адресу сервера й дані автоматично підставились? Увійдіть за email:uuid вашого VLESS-клієнта. Це не обов’язково — можна просто вставити конфіг із даними, вписаними вручну, нижче.',
-    ru: 'Хотите, чтобы адрес сервера и данные подставились автоматически? Войдите по email:uuid вашего VLESS-клиента. Это не обязательно — можно просто вставить конфиг с данными, вписанными вручную, ниже.',
+  'client.noCredentialsHint': {
+    en: 'No VLESS credentials are linked to your account yet. You can still paste a config with credentials typed in by hand below.',
+    ua: 'До вашого акаунта ще не прив’язано VLESS-даних. Можна просто вставити конфіг із даними, вписаними вручну, нижче.',
+    ru: 'К вашему аккаунту ещё не привязаны VLESS-данные. Можно просто вставить конфиг с данными, вписанными вручную, ниже.',
   },
-  'client.login': { en: 'Log in', ua: 'Увійти', ru: 'Войти' },
   'client.generateHint': {
     en: "Don't have credentials yet?",
     ua: 'Ще немає власних даних?',
@@ -257,10 +256,10 @@ const DICT = {
     ua: 'Збережіть поточний результат у свій акаунт (до {max} — після ліміту найстаріший видаляється).',
     ru: 'Сохраните текущий результат в свой аккаунт (до {max} — после лимита старейший удаляется).',
   },
-  'savedConfigs.loginHint': {
-    en: 'Log in to save generated configs to your account and download them later.',
-    ua: 'Увійдіть, щоб зберігати згенеровані конфіги у свій акаунт і завантажувати їх пізніше.',
-    ru: 'Войдите, чтобы сохранять сгенерированные конфиги в свой аккаунт и скачивать их позже.',
+  'savedConfigs.unavailableHint': {
+    en: 'Saving configs is available once your account has VLESS credentials.',
+    ua: 'Збереження конфігів доступне, коли в акаунта є VLESS-дані.',
+    ru: 'Сохранение конфигов доступно, когда у аккаунта есть VLESS-данные.',
   },
   'savedConfigs.saveButton': { en: 'Save current config', ua: 'Зберегти поточний конфіг', ru: 'Сохранить текущий конфиг' },
   'savedConfigs.saving': { en: 'Saving…', ua: 'Зберігаємо…', ru: 'Сохраняем…' },
