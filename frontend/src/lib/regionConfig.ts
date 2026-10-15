@@ -25,8 +25,8 @@ export interface RegionConfigResult {
  * redundantly alongside A/AAAA, adding latency for no benefit in this setup. */
 const BLOCK_HTTPS_SVCB_RULE = { query_type: [32, 33], action: 'predefined', rcode: 'NOERROR' }
 
-/** Tags of the top-level `http_clients` entries buildConfig.ts defines (detouring via the
- * direct / proxy outbound). Remote rule sets reference them via `http_client`, which
+/** Tags of the top-level `http_clients` entries buildConfig.ts defines (dialing directly /
+ * detouring via the proxy outbound). Remote rule sets reference them via `http_client`, which
  * replaces `download_detour` (removed in sing-box 1.16.0). */
 export const HTTP_CLIENT_DIRECT = 'http-direct'
 export const HTTP_CLIENT_PROXY = 'http-proxy'

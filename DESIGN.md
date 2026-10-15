@@ -315,7 +315,9 @@ what actually runs on a released sing-box today. Has no effect on the
   1.16.0**. The replacement is a top-level `http_clients` list, a per-entry
   `http_client` tag on each remote rule set, and `route.default_http_client`.
   `buildConfig.ts` emits two clients, `http-direct` and `http-proxy`
-  (`{tag, detour}` on the direct / proxy outbound); region rule sets pick one
+  (`http-proxy` has `detour` = the proxy outbound; `http-direct` has no
+  `detour`, since sing-box rejects a detour to an option-less direct
+  outbound with "detour to an empty direct outbound makes no sense"); region rule sets pick one
   via `http_client` (`regionConfig.ts`), and `route.default_http_client` is
   the one matching `route.final`, so the user's own rule sets (which carry no
   field) download through the same outbound the implicit default used to.
