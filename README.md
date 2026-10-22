@@ -21,7 +21,9 @@ below.
   logged in as; one email can hold several credentials (e.g. one with
   `flow: xtls-rprx-vision`, another with an empty flow for a multiplex
   config), in which case a dropdown picks between them — never any other
-  account's credentials. Logging in is optional: skip it and paste a config
+  account's credentials. The Client card shows the selected credential's
+  email and UUID in read-only fields (log out lives only in the top-right
+  menu). Logging in is optional: skip it and paste a config
   with credentials already filled in by hand instead — the rest of the tool
   (rule builder, region, multiplex, sing-box version target) works the same
   either way

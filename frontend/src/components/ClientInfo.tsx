@@ -70,14 +70,21 @@ export function ClientInfo({
         </div>
       )}
       {!loadError && client && (
-        <p className="help-text">
-          {t('client.loggedInAsPrefix')}
-          <strong>{client.email}</strong> ({client.server}:{client.serverPort})
-          {t('client.loggedInAsSuffix')}{' '}
-          <form action="/logout" method="post" style={{ display: 'inline' }}>
-            <button type="submit">{t('client.logout')}</button>
-          </form>
-        </p>
+        <>
+          <div className="field">
+            <label htmlFor="client-email">{t('client.emailLabel')}</label>
+            <input id="client-email" type="text" value={client.email} readOnly />
+          </div>
+          <div className="field">
+            <label htmlFor="client-uuid">{t('client.uuidLabel')}</label>
+            <input id="client-uuid" type="text" value={client.uuid} readOnly />
+          </div>
+          <p className="help-text">
+            {t('client.loggedInAsPrefix')}
+            <strong>{client.email}</strong> ({client.server}:{client.serverPort})
+            {t('client.loggedInAsSuffix')}
+          </p>
+        </>
       )}
     </div>
   )

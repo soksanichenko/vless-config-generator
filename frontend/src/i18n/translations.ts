@@ -26,6 +26,8 @@ const DICT = {
     ru: ' — эти данные будут подставлены в proxy-outbound.',
   },
   'client.logout': { en: 'Log out', ua: 'Вийти', ru: 'Выйти' },
+  'client.emailLabel': { en: 'Email', ua: 'Email', ru: 'Email' },
+  'client.uuidLabel': { en: 'UUID', ua: 'UUID', ru: 'UUID' },
   'client.noCredentialsHint': {
     en: 'No VLESS credentials are linked to your account yet. You can still paste a config with credentials typed in by hand below.',
     ua: 'До вашого акаунта ще не прив’язано VLESS-даних. Можна просто вставити конфіг із даними, вписаними вручну, нижче.',
