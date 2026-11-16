@@ -106,9 +106,30 @@
     pull: false
     networks:
       - name: "{{ docker_network }}"
+    labels:
+      monitoring.critical: "true"
     log_driver: journald
     volumes:
       - "{{ vless_config_generator_api_data_dir }}/config.yaml:/app/config.yaml:ro"
+  become: yes
+  tags:
+    - vless-config-generator
+    - vless-config-generator-api
+
+# The app has no health endpoint, so a TCP connect to its port is the readiness
+# signal. The entrypoint runs migrations first, hence the generous retries.
+- name: Wait for vless-config-generator-api to accept connections
+  community.docker.docker_container_exec:
+    container: "{{ vless_config_generator_api_container_name }}"
+    argv:
+      - python
+      - -c
+      - "import socket; socket.create_connection(('127.0.0.1', {{ vless_config_generator_api_http_port }}), 3)"
+  register: _vless_config_generator_api_wait
+  until: _vless_config_generator_api_wait.rc is defined and _vless_config_generator_api_wait.rc == 0
+  retries: 18
+  delay: 10
+  changed_when: false
   become: yes
   tags:
     - vless-config-generator
